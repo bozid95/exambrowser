@@ -19,19 +19,22 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.EditText
 import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var inputUrl: EditText
     private lateinit var btnStart: TextView
-    private lateinit var featureToggle: TextView
+    private lateinit var featureToggle: LinearLayout
     private lateinit var featureList: LinearLayout
+    private lateinit var chevronIcon: ImageView
     private var featuresOpen = false
     private var pinGranted = false
     private var mediaPlayer: MediaPlayer? = null
@@ -40,9 +43,7 @@ class MainActivity : AppCompatActivity() {
     private var webView: WebView? = null
     private var progressBar: View? = null
     private var controlBar: LinearLayout? = null
-    private var periodicCheckRunnable: Runnable? = null
 
-    // Colors (matching React Native UI)
     private val colorPrimary = Color.parseColor("#16213e")
     private val colorAccent = Color.parseColor("#e94560")
     private val colorWhite = Color.WHITE
@@ -53,6 +54,7 @@ class MainActivity : AppCompatActivity() {
     private val colorBtnDisabled = Color.parseColor("#888888")
     private val colorDivider = Color.parseColor("#e0e0e0")
     private val colorFeatureText = Color.parseColor("#555")
+    private val colorRed = Color.parseColor("#dc2626")
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -68,14 +70,10 @@ class MainActivity : AppCompatActivity() {
             setBackgroundColor(colorBg)
             gravity = Gravity.CENTER
         }
-
         val scroll = ScrollView(this).apply {
             layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT
-            )
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
         }
-
         val container = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(16), dp(40), dp(16), dp(16))
@@ -85,11 +83,12 @@ class MainActivity : AppCompatActivity() {
         // Card
         val card = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(14), dp(16), dp(14), dp(14))
+            setPadding(dp(20), dp(24), dp(20), dp(20))
             background = GradientDrawable().apply {
                 shape = GradientDrawable.RECTANGLE
-                cornerRadius = dp(8).toFloat()
+                cornerRadius = dp(12).toFloat()
                 setColor(colorCard)
+                setStroke(1, Color.parseColor("#f0f0f0"))
             }
         }
 
@@ -99,23 +98,22 @@ class MainActivity : AppCompatActivity() {
             textSize = 22f
             setTextColor(colorPrimary)
             gravity = Gravity.CENTER
-            setPadding(0, 0, 0, dp(3))
+            setPadding(0, 0, 0, dp(8))
         })
 
         // Divider
         card.addView(View(this).apply {
             layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, 1
-            ).apply { setMargins(0, dp(6), 0, dp(6)) }
+            ).apply { setMargins(0, dp(8), 0, dp(8)) }
             setBackgroundColor(colorDivider)
         })
 
-        // Input row (URL + QR)
+        // Input row
         val inputRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
         }
-
         inputUrl = EditText(this).apply {
             hint = "Masukan Url atau IP CBT"
             setHintTextColor(colorMuted)
@@ -123,111 +121,94 @@ class MainActivity : AppCompatActivity() {
             textSize = 14f
             background = GradientDrawable().apply {
                 shape = GradientDrawable.RECTANGLE
-                cornerRadius = dp(4).toFloat()
+                cornerRadius = dp(6).toFloat()
                 setColor(Color.parseColor("#f9f9f9"))
-                setStroke(1, Color.parseColor("#eee"))
+                setStroke(1, Color.parseColor("#e0e0e0"))
             }
-            setPadding(dp(12), dp(10), dp(12), dp(10))
-            layoutParams = LinearLayout.LayoutParams(
-                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f
-            )
+            setPadding(dp(14), dp(12), dp(14), dp(12))
+            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
         }
         inputUrl.addTextChangedListener(object : android.text.TextWatcher {
             override fun afterTextChanged(s: android.text.Editable?) { updateStartButton() }
             override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
             override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
         })
-
         inputRow.addView(inputUrl)
-        inputRow.addView(View(this).apply {
-            layoutParams = LinearLayout.LayoutParams(dp(6), 0)
-        })
+        inputRow.addView(View(this).apply { layoutParams = LinearLayout.LayoutParams(dp(8), 0) })
 
-        // QR button
-        val qrBtn = TextView(this).apply {
-            text = "QR"
+        // QR Scanner button with VectorDrawable icon
+        val qrContainer = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
-            setTextColor(colorWhite)
-            textSize = 13f
-            setPadding(dp(10), dp(10), dp(10), dp(10))
+            setPadding(dp(12), dp(10), dp(12), dp(10))
             background = GradientDrawable().apply {
                 shape = GradientDrawable.RECTANGLE
-                cornerRadius = dp(4).toFloat()
+                cornerRadius = dp(6).toFloat()
                 setColor(colorPrimary)
             }
             setOnClickListener {
                 Toast.makeText(this@MainActivity, "QR Scanner — coming soon", Toast.LENGTH_SHORT).show()
             }
         }
-        inputRow.addView(qrBtn)
-
+        qrContainer.addView(ImageView(this).apply {
+            setImageResource(R.drawable.ic_qr_scanner)
+            layoutParams = LinearLayout.LayoutParams(dp(22), dp(22))
+        })
+        inputRow.addView(qrContainer)
         card.addView(inputRow)
         card.addView(View(this).apply {
-            layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, dp(10)
-            )
+            layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(14))
         })
 
-        // Mulai Ujian button
+        // Mulai Ujian
         btnStart = TextView(this).apply {
             text = "Mulai Ujian"
             gravity = Gravity.CENTER
             textSize = 15f
-            setPadding(0, dp(12), 0, dp(12))
-            layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
-            )
+            setPadding(0, dp(14), 0, dp(14))
             setOnClickListener { handleStart() }
         }
         card.addView(btnStart)
         updateStartButton()
 
-        // Keluar Aplikasi
-        val exitRow = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER
-            setPadding(0, dp(8), 0, 0)
-        }
-        val arrow = TextView(this).apply {
-            text = "\u2192"
-            setTextColor(Color.parseColor("#dc2626"))
-            textSize = 14f
-            setPadding(0, 0, dp(3), 0)
-        }
-        val exitText = TextView(this).apply {
-            text = "Keluar Aplikasi"
-            setTextColor(Color.parseColor("#dc2626"))
-            textSize = 13f
-        }
-        exitRow.addView(arrow)
-        exitRow.addView(exitText)
-        card.addView(exitRow)
-        exitRow.setOnClickListener {
+        // Keluar Aplikasi row
+        card.addView(makeIconLabelRow(
+            R.drawable.ic_exit_app, "Keluar Aplikasi", colorRed, dp(14)
+        ) {
             AlertDialog.Builder(this@MainActivity)
                 .setTitle("Keluar Aplikasi")
                 .setMessage("Apakah Anda yakin ingin keluar dari Exam Browser?")
                 .setPositiveButton("Ya, Keluar") { _, _ -> killApp() }
                 .setNegativeButton("Batal", null)
                 .show()
-        }
+        })
 
-        // Fitur Aplikasi (collapse)
-        featureToggle = TextView(this).apply {
-            text = "\u25BC  Fitur Aplikasi"
+        // Fitur Aplikasi collapse
+        featureToggle = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
-            setTextColor(Color.parseColor("#888"))
-            textSize = 11f
-            setPadding(0, dp(10), 0, dp(4))
+            setPadding(0, dp(16), 0, dp(6))
             setOnClickListener {
                 featuresOpen = !featuresOpen
                 buildFeatureList()
             }
         }
+        chevronIcon = ImageView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(dp(14), dp(14))
+            setImageResource(R.drawable.ic_chevron)
+        }
+        featureToggle.addView(chevronIcon)
+        featureToggle.addView(View(this).apply { layoutParams = LinearLayout.LayoutParams(dp(4), 0) })
+        featureToggle.addView(TextView(this).apply {
+            text = "Fitur Aplikasi"
+            setTextColor(Color.parseColor("#888"))
+            textSize = 12f
+        })
         card.addView(featureToggle)
 
         featureList = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(2), 0, dp(2), dp(2))
+            setPadding(dp(6), 0, dp(6), dp(4))
         }
         buildFeatureList()
         card.addView(featureList)
@@ -238,23 +219,48 @@ class MainActivity : AppCompatActivity() {
         setContentView(root)
     }
 
+    private fun makeIconLabelRow(iconRes: Int, label: String, color: Int, topMargin: Int, onClick: () -> Unit): LinearLayout {
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+            setPadding(0, topMargin, 0, 0)
+            setOnClickListener { onClick() }
+            addView(ImageView(this@MainActivity).apply {
+                setImageResource(iconRes)
+                layoutParams = LinearLayout.LayoutParams(dp(16), dp(16)).apply { setMargins(0, 0, dp(6), 0) }
+            })
+            addView(TextView(this@MainActivity).apply {
+                text = label
+                setTextColor(color)
+                textSize = 13f
+            })
+        }
+    }
+
     private fun buildFeatureList() {
         featureList.removeAllViews()
-        featureToggle.text = if (featuresOpen) "\u25B2  Fitur Aplikasi" else "\u25BC  Fitur Aplikasi"
+        chevronIcon.rotation = if (featuresOpen) 180f else 0f
         if (!featuresOpen) return
 
-        val features = arrayOf(
-            "\uD83D\uDD12  Kunci perangkat (Lock Task)",
-            "\uD83D\uDCF5  Nonaktifkan screenshot",
-            "\uD83D\uDCDD  Blokir copy/paste",
-            "\uD83C\uDF10  Navigasi terbatas (hostname saja)"
+        val items = arrayOf(
+            Pair(R.drawable.ic_lock, "Kunci perangkat (Lock Task)"),
+            Pair(R.drawable.ic_no_screenshot, "Nonaktifkan screenshot"),
+            Pair(R.drawable.ic_copy_paste, "Blokir copy/paste"),
+            Pair(R.drawable.ic_globe, "Navigasi terbatas (hostname saja)")
         )
-        for (f in features) {
-            featureList.addView(TextView(this).apply {
-                text = f
-                setTextColor(colorFeatureText)
-                textSize = 12f
-                setPadding(0, dp(3), 0, dp(3))
+        for ((icon, text) in items) {
+            featureList.addView(LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                setPadding(0, dp(5), 0, dp(5))
+                addView(ImageView(this@MainActivity).apply {
+                    setImageResource(icon)
+                    layoutParams = LinearLayout.LayoutParams(dp(16), dp(16)).apply { setMargins(0, 0, dp(8), 0) }
+                })
+                addView(TextView(this@MainActivity).apply {
+                    text = text
+                    setTextColor(colorFeatureText)
+                    textSize = 12f
+                })
             })
         }
     }
@@ -263,11 +269,10 @@ class MainActivity : AppCompatActivity() {
         val hasText = inputUrl.text.toString().trim().isNotEmpty()
         btnStart.background = GradientDrawable().apply {
             shape = GradientDrawable.RECTANGLE
-            cornerRadius = dp(4).toFloat()
+            cornerRadius = dp(6).toFloat()
             setColor(if (hasText) colorBtnActive else colorBtnDisabled)
         }
         btnStart.setTextColor(if (hasText) colorWhite else Color.parseColor("#cccccc"))
-        btnStart.isEnabled = hasText
     }
 
     private fun handleStart() {
@@ -280,12 +285,9 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, "Pin belum disetujui!", Toast.LENGTH_SHORT).show()
             return
         }
-
         playAlarm()
-
         val isIp = Regex("^\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}").containsMatchIn(raw)
         examUrl = if (raw.contains("://")) raw else "${if (isIp) "http" else "https"}://$raw"
-
         buildExamScreen()
     }
 
@@ -296,42 +298,33 @@ class MainActivity : AppCompatActivity() {
             .setTitle("Peringatan!")
             .setMessage("Anda wajib menyematkan (pin) aplikasi untuk mengerjakan ujian.\n\nJika Anda menolak, aplikasi akan ditutup.")
             .setCancelable(false)
-            .setPositiveButton("Saya Setuju") { _, _ ->
-                doLockTask()
-                waitForPin()
-            }
+            .setPositiveButton("Saya Setuju") { _, _ -> doLockTask(); waitForPin() }
             .setNegativeButton("Tidak Setuju") { _, _ -> killApp() }
             .show()
     }
 
-    // ============ EXAM SCREEN (identik dengan React Native ExamScreen.tsx) ============
+    // ============ EXAM SCREEN ============
 
     private fun buildExamScreen() {
         window.addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
-
         val root = FrameLayout(this)
         val safeTop = dp(12)
 
-        // WebView
         val wv = WebView(this).apply {
             layoutParams = FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT
             ).apply { setMargins(0, safeTop, 0, dp(48)) }
-
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = true
             settings.allowFileAccess = false
             setLayerType(View.LAYER_TYPE_HARDWARE, null)
-
             webViewClient = object : WebViewClient() {
-                override fun shouldOverrideUrlLoading(view: WebView, request: android.webkit.WebResourceRequest): Boolean {
-                    return try {
+                override fun shouldOverrideUrlLoading(view: WebView, request: android.webkit.WebResourceRequest) =
+                    try {
                         val targetHost = request.url.host ?: return true
                         val initialHost = java.net.URL(examUrl).host
                         targetHost != initialHost && !targetHost.endsWith(".$initialHost")
                     } catch (_: Exception) { true }
-                }
                 override fun onPageFinished(view: WebView, u: String) {
                     super.onPageFinished(view, u)
                     progressBar?.visibility = View.GONE
@@ -343,7 +336,6 @@ class MainActivity : AppCompatActivity() {
         }
         webView = wv
 
-        // Progress bar
         progressBar = View(this).apply {
             layoutParams = FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, dp(3)
@@ -351,7 +343,7 @@ class MainActivity : AppCompatActivity() {
             setBackgroundColor(colorAccent)
         }
 
-        // ControlBar
+        // ControlBar with VectorDrawable icons
         controlBar = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
@@ -361,53 +353,42 @@ class MainActivity : AppCompatActivity() {
             setBackgroundColor(colorPrimary)
         }
 
-        // Reload
-        controlBar!!.addView(ctrlBtn("\u21BB", "Reload") { wv.reload() })
-        controlBar!!.addView(View(this).apply {
-            layoutParams = LinearLayout.LayoutParams(0, 0, 1f)
-        })
-        // Home
-        controlBar!!.addView(ctrlBtn("\u2302", "Home") { wv.loadUrl(examUrl) })
-        controlBar!!.addView(View(this).apply {
-            layoutParams = LinearLayout.LayoutParams(0, 0, 1f)
-        })
-        // Exit
-        controlBar!!.addView(ctrlBtn("\u2716", "Exit") {
+        fun addCtrl(icon: Int, label: String, onClick: () -> Unit) {
+            val btn = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                gravity = Gravity.CENTER
+                setPadding(dp(16), dp(4), dp(16), dp(4))
+                setOnClickListener { onClick() }
+                addView(ImageView(this@MainActivity).apply {
+                    setImageResource(icon)
+                    layoutParams = LinearLayout.LayoutParams(dp(20), dp(20))
+                })
+                addView(TextView(this@MainActivity).apply {
+                    text = label
+                    setTextColor(Color.parseColor("#aaa"))
+                    textSize = 9f
+                    gravity = Gravity.CENTER
+                })
+            }
+            controlBar!!.addView(btn)
+        }
+        addCtrl(R.drawable.ic_reload, "Reload") { wv.reload() }
+        controlBar!!.addView(View(this).apply { layoutParams = LinearLayout.LayoutParams(0, 0, 1f) })
+        addCtrl(R.drawable.ic_home, "Home") { wv.loadUrl(examUrl) }
+        controlBar!!.addView(View(this).apply { layoutParams = LinearLayout.LayoutParams(0, 0, 1f) })
+        addCtrl(R.drawable.ic_exit, "Exit") {
             pinGranted = false
             window.clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
             buildHomeScreen()
-        })
+        }
 
         root.addView(wv)
         root.addView(progressBar)
         root.addView(controlBar)
         setContentView(root)
 
-        // Periodic unpin check
         startPeriodicCheck()
-
         wv.loadUrl(examUrl)
-    }
-
-    private fun ctrlBtn(symbol: String, label: String, onClick: () -> Unit): LinearLayout {
-        return LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER
-            setPadding(dp(14), dp(3), dp(14), dp(3))
-            setOnClickListener { onClick() }
-            addView(TextView(this@MainActivity).apply {
-                text = symbol
-                setTextColor(colorWhite)
-                textSize = 18f
-                gravity = Gravity.CENTER
-            })
-            addView(TextView(this@MainActivity).apply {
-                text = label
-                setTextColor(Color.parseColor("#aaa"))
-                textSize = 9f
-                gravity = Gravity.CENTER
-            })
-        }
     }
 
     // ============ PIN / LOCK TASK ============
@@ -420,14 +401,12 @@ class MainActivity : AppCompatActivity() {
                 View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
                 View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
                 View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION or
-                View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-            )
+                View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                 window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                @Suppress("DEPRECATION")
-                startLockTask()
+                @Suppress("DEPRECATION") startLockTask()
             }
         } catch (_: Exception) {}
     }
@@ -436,15 +415,11 @@ class MainActivity : AppCompatActivity() {
         Thread {
             val start = System.currentTimeMillis()
             while (true) {
-                if (System.currentTimeMillis() - start > 15000) {
-                    killApp()
-                    return@Thread
-                }
+                if (System.currentTimeMillis() - start > 15000) { killApp(); return@Thread }
                 try {
                     val am = getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
                     if (am.isInLockTaskMode || am.lockTaskModeState == ActivityManager.LOCK_TASK_MODE_LOCKED) {
-                        pinGranted = true
-                        return@Thread
+                        pinGranted = true; return@Thread
                     }
                 } catch (_: Exception) {}
                 Thread.sleep(500)
@@ -459,17 +434,12 @@ class MainActivity : AppCompatActivity() {
                 try {
                     val am = getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
                     if (!am.isInLockTaskMode && am.lockTaskModeState != ActivityManager.LOCK_TASK_MODE_LOCKED) {
-                        killApp()
-                        return
+                        killApp(); return
                     }
-                } catch (_: Exception) {
-                    killApp()
-                    return
-                }
+                } catch (_: Exception) { killApp(); return }
                 window.decorView.postDelayed(this, 1000)
             }
         }
-        periodicCheckRunnable = runnable
         window.decorView.postDelayed(runnable, 1000)
     }
 
@@ -479,20 +449,17 @@ class MainActivity : AppCompatActivity() {
             try {
                 val am = getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
                 if (!am.isInLockTaskMode && am.lockTaskModeState != ActivityManager.LOCK_TASK_MODE_LOCKED) {
-                    killApp()
-                    return
+                    killApp(); return
                 }
                 doLockTask()
-            } catch (_: Exception) {
-                killApp()
-            }
+            } catch (_: Exception) { killApp() }
         }
     }
 
     // ============ JS BLOCKER ============
 
     private fun injectBlockerJs(wv: WebView) {
-        val js = """
+        wv.evaluateJavascript("""
 (function(){
     if(window.__exambrowser_blocked)return;
     window.__exambrowser_blocked=true;
@@ -510,8 +477,7 @@ class MainActivity : AppCompatActivity() {
     document.addEventListener('contextmenu',function(e){e.preventDefault();return false},true);
     document.addEventListener('touchstart',function(e){if(e.touches.length>1)e.preventDefault()},{passive:false});
 })();
-""".trimIndent()
-        wv.evaluateJavascript(js, null)
+""".trimIndent(), null)
     }
 
     private fun blockCopyPaste() {
@@ -532,53 +498,33 @@ class MainActivity : AppCompatActivity() {
             val am = getSystemService(Context.AUDIO_SERVICE) as AudioManager
             am.setStreamVolume(AudioManager.STREAM_MUSIC, am.getStreamMaxVolume(AudioManager.STREAM_MUSIC), 0)
             am.setStreamVolume(AudioManager.STREAM_ALARM, am.getStreamMaxVolume(AudioManager.STREAM_ALARM), 0)
-
             val resId = resources.getIdentifier("alarm", "raw", packageName)
             if (resId == 0) return
             val afd = resources.openRawResourceFd(resId) ?: return
-
-            mediaPlayer?.release()
-            mediaPlayer = null
-
+            mediaPlayer?.release(); mediaPlayer = null
             val mp = MediaPlayer().apply {
                 setDataSource(afd.fileDescriptor, afd.startOffset, afd.length)
                 setAudioAttributes(AudioAttributes.Builder()
                     .setUsage(AudioAttributes.USAGE_ALARM)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                    .build())
+                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC).build())
                 setVolume(1f, 1f)
-                setOnPreparedListener {
-                    try { afd.close() } catch (_: Exception) {}
-                    start()
-                }
+                setOnPreparedListener { try { afd.close() } catch (_: Exception) {}; start() }
                 setOnCompletionListener { release(); mediaPlayer = null }
                 setOnErrorListener { _, _, _ ->
-                    try { afd.close() } catch (_: Exception) {}
-                    release(); mediaPlayer = null; true
-                }
+                    try { afd.close() } catch (_: Exception) {}; release(); mediaPlayer = null; true }
             }
-            mediaPlayer = mp
-            mp.prepareAsync()
+            mediaPlayer = mp; mp.prepareAsync()
         } catch (_: Exception) {}
     }
 
     // ============ BLOCK BACK & HOME ============
 
-    override fun onBackPressed() { /* BLOCKED */ }
-
-    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
-        return when (keyCode) {
-            KeyEvent.KEYCODE_BACK, KeyEvent.KEYCODE_HOME, KeyEvent.KEYCODE_APP_SWITCH -> true
-            else -> super.onKeyDown(keyCode, event)
-        }
+    override fun onBackPressed() {}
+    override fun onKeyDown(keyCode: Int, event: KeyEvent?) = when (keyCode) {
+        KeyEvent.KEYCODE_BACK, KeyEvent.KEYCODE_HOME, KeyEvent.KEYCODE_APP_SWITCH -> true
+        else -> super.onKeyDown(keyCode, event)
     }
-
-    override fun onUserLeaveHint() {
-        if (pinGranted) killApp()
-        super.onUserLeaveHint()
-    }
-
-    // ============ KILL ============
+    override fun onUserLeaveHint() { if (pinGranted) killApp(); super.onUserLeaveHint() }
 
     private fun killApp() {
         finishAffinity()
@@ -586,5 +532,5 @@ class MainActivity : AppCompatActivity() {
         System.exit(0)
     }
 
-    private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
+    private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
 }
