@@ -10,6 +10,7 @@ import android.media.AudioManager
 import android.media.MediaPlayer
 import android.os.Build
 import android.os.Bundle
+import android.os.BatteryManager
 import android.os.Handler
 import android.os.Looper
 import android.view.Gravity
@@ -28,6 +29,8 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import java.text.SimpleDateFormat
+import java.util.*
 
 class MainActivity : AppCompatActivity() {
 
@@ -45,16 +48,16 @@ class MainActivity : AppCompatActivity() {
     private var progressBar: View? = null
     private var controlBar: LinearLayout? = null
     private var killed = false
+    private var timeView: TextView? = null
+    private var batteryView: TextView? = null
+    private var statusBar: LinearLayout? = null
     private val handler = Handler(Looper.getMainLooper())
-
-    private val colorPrimary = Color.parseColor("#16213e")
-    private val colorAccent = Color.parseColor("#e94560")
-    private val colorWhite = Color.WHITE
-    private val colorMuted = Color.parseColor("#aaaaaa")
-    private val colorBg = Color.parseColor("#f5f5f5")
-    private val colorDivider = Color.parseColor("#e0e0e0")
-    private val colorFeatureText = Color.parseColor("#555555")
-    private val colorRed = Color.parseColor("#dc2626")
+    private val clockUpdater = object : Runnable {
+        override fun run() {
+            timeView?.text = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
+            handler.postDelayed(this, 30000)
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -64,7 +67,7 @@ class MainActivity : AppCompatActivity() {
         } catch (e: Exception) {
             e.printStackTrace()
             Toast.makeText(this, "Error: " + e.message, Toast.LENGTH_LONG).show()
-            pinGranted = true // fallback
+            pinGranted = true
         }
     }
 
@@ -73,17 +76,17 @@ class MainActivity : AppCompatActivity() {
     private fun buildHomeScreen() {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(colorBg)
-            gravity = Gravity.CENTER
+            setBackgroundColor(Color.parseColor("#f5f5f5"))
         }
+
         val scroll = ScrollView(this).apply {
-            layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+            layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
         }
+
         val container = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(16), dp(40), dp(16), dp(16))
-            gravity = Gravity.CENTER_HORIZONTAL
+            gravity = Gravity.CENTER
+            setPadding(dp(20), dp(40), dp(20), dp(20))
         }
 
         val card = LinearLayout(this).apply {
@@ -100,16 +103,15 @@ class MainActivity : AppCompatActivity() {
         card.addView(TextView(this).apply {
             text = "Exam Browser"
             textSize = 22f
-            setTextColor(colorPrimary)
+            setTextColor(Color.parseColor("#16213e"))
             gravity = Gravity.CENTER
             setPadding(0, 0, 0, dp(8))
         })
 
         card.addView(View(this).apply {
-            layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, 1
-            ).apply { setMargins(0, dp(8), 0, dp(8)) }
-            setBackgroundColor(colorDivider)
+            layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 1)
+                .apply { setMargins(0, dp(8), 0, dp(8)) }
+            setBackgroundColor(Color.parseColor("#e0e0e0"))
         })
 
         val inputRow = LinearLayout(this).apply {
@@ -118,7 +120,7 @@ class MainActivity : AppCompatActivity() {
         }
         inputUrl = EditText(this).apply {
             hint = "Masukan Url atau IP CBT"
-            setHintTextColor(colorMuted)
+            setHintTextColor(Color.parseColor("#aaaaaa"))
             setTextColor(Color.BLACK)
             textSize = 14f
             background = GradientDrawable().apply {
@@ -130,22 +132,15 @@ class MainActivity : AppCompatActivity() {
             setPadding(dp(14), dp(12), dp(14), dp(12))
             layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
         }
-        inputUrl.addTextChangedListener(object : android.text.TextWatcher {
-            override fun afterTextChanged(s: android.text.Editable?) { updateStartButton() }
-            override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
-            override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
-        })
         inputRow.addView(inputUrl)
         inputRow.addView(View(this).apply { layoutParams = LinearLayout.LayoutParams(dp(8), 0) })
 
         val qrContainer = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER
+            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER
             setPadding(dp(12), dp(10), dp(12), dp(10))
             background = GradientDrawable().apply {
-                shape = GradientDrawable.RECTANGLE
-                cornerRadius = dp(6).toFloat()
-                setColor(colorPrimary)
+                shape = GradientDrawable.RECTANGLE; cornerRadius = dp(6).toFloat()
+                setColor(Color.parseColor("#16213e"))
             }
             setOnClickListener { Toast.makeText(this@MainActivity, "QR Scanner — coming soon", Toast.LENGTH_SHORT).show() }
         }
@@ -160,28 +155,23 @@ class MainActivity : AppCompatActivity() {
         })
 
         btnStart = TextView(this).apply {
-            text = "Mulai Ujian"
-            gravity = Gravity.CENTER
-            textSize = 15f
-            setPadding(0, dp(14), 0, dp(14))
-            setOnClickListener { handleStart() }
+            text = "Mulai Ujian"; gravity = Gravity.CENTER; textSize = 15f
+            setPadding(0, dp(14), 0, dp(14)); setOnClickListener { handleStart() }
         }
         card.addView(btnStart)
         updateStartButton()
 
-        card.addView(makeIconLabelRow(R.drawable.ic_exit_app, "Keluar Aplikasi", colorRed, dp(14)) {
+        card.addView(makeIconLabelRow(R.drawable.ic_exit_app, "Keluar Aplikasi", Color.parseColor("#dc2626"), dp(14)) {
             AlertDialog.Builder(this@MainActivity)
                 .setTitle("Keluar Aplikasi")
                 .setMessage("Apakah Anda yakin ingin keluar dari Exam Browser?")
                 .setPositiveButton("Ya, Keluar") { _, _ -> killApp() }
-                .setNegativeButton("Batal", null)
-                .show()
+                .setNegativeButton("Batal", null).show()
         })
 
         featureToggle = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER
-            setPadding(0, dp(16), 0, dp(6))
+            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER
+            setPadding(0, dp(14), 0, dp(4))
             setOnClickListener { featuresOpen = !featuresOpen; buildFeatureList() }
         }
         chevronIcon = ImageView(this).apply {
@@ -191,15 +181,12 @@ class MainActivity : AppCompatActivity() {
         featureToggle.addView(chevronIcon)
         featureToggle.addView(View(this).apply { layoutParams = LinearLayout.LayoutParams(dp(4), 0) })
         featureToggle.addView(TextView(this).apply {
-            text = "Fitur Aplikasi"
-            setTextColor(Color.parseColor("#888888"))
-            textSize = 12f
+            text = "Fitur Aplikasi"; setTextColor(Color.parseColor("#888888")); textSize = 12f
         })
         card.addView(featureToggle)
 
         featureList = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(6), 0, dp(6), dp(4))
+            orientation = LinearLayout.VERTICAL; setPadding(dp(6), 0, dp(6), dp(4))
         }
         buildFeatureList()
         card.addView(featureList)
@@ -208,24 +195,6 @@ class MainActivity : AppCompatActivity() {
         scroll.addView(container)
         root.addView(scroll)
         setContentView(root)
-    }
-
-    private fun makeIconLabelRow(iconRes: Int, label: String, color: Int, topMargin: Int, onClick: () -> Unit): LinearLayout {
-        return LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER
-            setPadding(0, topMargin, 0, 0)
-            setOnClickListener { onClick() }
-            addView(ImageView(this@MainActivity).apply {
-                setImageResource(iconRes)
-                layoutParams = LinearLayout.LayoutParams(dp(16), dp(16)).apply { setMargins(0, 0, dp(6), 0) }
-            })
-            addView(TextView(this@MainActivity).apply {
-                text = label
-                setTextColor(color)
-                textSize = 13f
-            })
-        }
     }
 
     private fun buildFeatureList() {
@@ -240,48 +209,161 @@ class MainActivity : AppCompatActivity() {
         )
         for ((icon, lbl) in items) {
             featureList.addView(LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                setPadding(0, dp(5), 0, dp(5))
+                orientation = LinearLayout.HORIZONTAL; setPadding(0, dp(5), 0, dp(5))
                 addView(ImageView(this@MainActivity).apply {
                     setImageResource(icon)
                     layoutParams = LinearLayout.LayoutParams(dp(16), dp(16)).apply { setMargins(0, 0, dp(8), 0) }
                 })
                 addView(TextView(this@MainActivity).apply {
-                    text = lbl
-                    setTextColor(colorFeatureText)
-                    textSize = 12f
+                    text = lbl; setTextColor(Color.parseColor("#555555")); textSize = 12f
                 })
             })
         }
     }
 
-    private fun updateStartButton() {
-        val hasText = inputUrl.text.toString().trim().isNotEmpty()
-        btnStart.background = GradientDrawable().apply {
-            shape = GradientDrawable.RECTANGLE
-            cornerRadius = dp(6).toFloat()
-            setColor(if (hasText) Color.parseColor("#16213e") else Color.parseColor("#888888"))
+    // ============ EXAM SCREEN ============
+
+    private fun buildExamScreen() {
+        window.addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
+        val root = FrameLayout(this)
+        val statusH = dp(24)
+
+        // Custom status bar (jam + baterai)
+        statusBar = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
+            layoutParams = FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, statusH)
+                .apply { gravity = Gravity.TOP }
+            setBackgroundColor(Color.parseColor("#0d1a2d"))
+            setPadding(dp(10), 0, dp(10), 0)
         }
-        btnStart.setTextColor(if (hasText) Color.WHITE else Color.parseColor("#cccccc"))
+        timeView = TextView(this).apply {
+            text = "00:00"; setTextColor(Color.parseColor("#ffffff")); textSize = 11f
+        }
+        statusBar!!.addView(timeView)
+        statusBar!!.addView(View(this).apply { layoutParams = LinearLayout.LayoutParams(0, 0, 1f) })
+        batteryView = TextView(this).apply {
+            text = "${getBatteryLevel()}%"; setTextColor(Color.parseColor("#ffffff")); textSize = 11f
+        }
+        statusBar!!.addView(batteryView)
+        root.addView(statusBar)
+
+        val wv = WebView(this).apply {
+            layoutParams = FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+                .apply { topMargin = statusH; bottomMargin = dp(48) }
+            settings.javaScriptEnabled = true; settings.domStorageEnabled = true
+            settings.allowFileAccess = false; setLayerType(View.LAYER_TYPE_HARDWARE, null)
+            webViewClient = object : WebViewClient() {
+                override fun shouldOverrideUrlLoading(view: WebView, request: android.webkit.WebResourceRequest) =
+                    try {
+                        val targetHost = request.url.host ?: return true
+                        val initialHost = java.net.URL(examUrl).host
+                        targetHost != initialHost && !targetHost.endsWith(".$initialHost")
+                    } catch (_: Exception) { true }
+                override fun onPageFinished(view: WebView, u: String) {
+                    super.onPageFinished(view, u)
+                    progressBar?.visibility = View.GONE
+                    try { blockCopyPaste() } catch (_: Exception) {}
+                    try { injectBlockerJs(view) } catch (_: Exception) {}
+                }
+            }
+            setOnLongClickListener { true }
+        }
+        webView = wv
+        root.addView(wv)
+
+        progressBar = View(this).apply {
+            layoutParams = FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(3))
+                .apply { gravity = Gravity.TOP; topMargin = statusH }
+            setBackgroundColor(Color.parseColor("#e94560"))
+        }
+        root.addView(progressBar)
+
+        controlBar = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER
+            layoutParams = FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(48))
+                .apply { gravity = Gravity.BOTTOM }
+            setBackgroundColor(Color.parseColor("#16213e"))
+        }
+        root.addView(controlBar)
+
+        fun addBtn(icon: Int, lbl: String, onClick: () -> Unit) {
+            controlBar?.addView(LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER
+                setPadding(dp(16), dp(4), dp(16), dp(4))
+                setOnClickListener { onClick() }
+                addView(ImageView(this@MainActivity).apply {
+                    setImageResource(icon)
+                    layoutParams = LinearLayout.LayoutParams(dp(20), dp(20))
+                })
+                addView(TextView(this@MainActivity).apply {
+                    text = lbl; setTextColor(Color.parseColor("#aaaaaa")); textSize = 9f; gravity = Gravity.CENTER
+                })
+            })
+        }
+        addBtn(R.drawable.ic_reload, "Reload") { try { wv.reload() } catch (_: Exception) {} }
+        controlBar?.addView(View(this).apply { layoutParams = LinearLayout.LayoutParams(0, 0, 1f) })
+        addBtn(R.drawable.ic_home, "Home") { try { wv.loadUrl(examUrl) } catch (_: Exception) {} }
+        controlBar?.addView(View(this).apply { layoutParams = LinearLayout.LayoutParams(0, 0, 1f) })
+        addBtn(R.drawable.ic_exit, "Exit") { showExitPinDialog() }
+
+        setContentView(root)
+        startPeriodicCheck()
+        startClock()
+        wv.loadUrl(examUrl)
     }
 
-    private fun handleStart() {
-        val raw = inputUrl.text.toString().trim()
-        if (raw.isEmpty()) {
-            Toast.makeText(this, "Masukkan URL Server CBT terlebih dahulu.", Toast.LENGTH_SHORT).show()
-            return
+    // ============ EXIT PIN DIALOG ============
+
+    private fun showExitPinDialog() {
+        val editPin = EditText(this).apply {
+            hint = "Masukkan PIN"
+            setHintTextColor(Color.parseColor("#aaaaaa"))
+            setTextColor(Color.BLACK)
         }
-        if (!pinGranted) {
-            Toast.makeText(this, "Pin belum disetujui!", Toast.LENGTH_SHORT).show()
-            return
-        }
-        playAlarm()
-        val isIp = Regex("^\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}").containsMatchIn(raw)
-        examUrl = if (raw.contains("://")) raw else "${if (isIp) "http" else "https"}://$raw"
-        buildExamScreen()
+        AlertDialog.Builder(this)
+            .setTitle("Keluar Ujian")
+            .setMessage("Masukkan PIN untuk keluar dari ujian.")
+            .setView(editPin)
+            .setPositiveButton("OK") { _, _ ->
+                if (editPin.text.toString().trim() == "1234") {
+                    pinGranted = false
+                    try { window.clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN) } catch (_: Exception) {}
+                    statusBar = null; timeView = null; batteryView = null
+                    buildHomeScreen()
+                } else {
+                    Toast.makeText(this, "PIN salah!", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("Batal", null)
+            .show()
     }
 
-    // ============ PIN DIALOG ============
+    private fun getBatteryLevel(): Int {
+        return try {
+            val bm = getSystemService(Context.BATTERY_SERVICE) as BatteryManager
+            bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
+        } catch (_: Exception) { 100 }
+    }
+
+    private fun startClock() {
+        handler.post(clockUpdater)
+    }
+
+    private fun makeIconLabelRow(iconRes: Int, label: String, color: Int, topMargin: Int, onClick: () -> Unit): LinearLayout {
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER
+            setPadding(0, topMargin, 0, 0); setOnClickListener { onClick() }
+            addView(ImageView(this@MainActivity).apply {
+                setImageResource(iconRes)
+                layoutParams = LinearLayout.LayoutParams(dp(16), dp(16)).apply { setMargins(0, 0, dp(6), 0) }
+            })
+            addView(TextView(this@MainActivity).apply {
+                text = label; setTextColor(color); textSize = 13f
+            })
+        }
+    }
+
+    // ============ PIN / LOCK TASK ============
 
     private fun showPinDialog() {
         if (isFinishing || isDestroyed) return
@@ -291,273 +373,112 @@ class MainActivity : AppCompatActivity() {
                 .setMessage("Anda wajib menyematkan (pin) aplikasi untuk mengerjakan ujian.\n\nJika Anda menolak, aplikasi akan ditutup.")
                 .setCancelable(false)
                 .setPositiveButton("Saya Setuju") { _, _ -> doLockTask(); waitForPin() }
-                .setNegativeButton("Tidak Setuju") { _, _ ->
-                    handler.postDelayed({ killApp() }, 100)
-                }
+                .setNegativeButton("Tidak Setuju") { _, _ -> handler.postDelayed({ killApp() }, 100) }
                 .show()
-        } catch (e: Exception) {
-            e.printStackTrace()
-            killApp()
-        }
+        } catch (e: Exception) { e.printStackTrace(); killApp() }
     }
-
-    // ============ EXAM SCREEN ============
-
-    private fun buildExamScreen() {
-        try {
-            window.addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
-        } catch (_: Exception) {}
-        val root = FrameLayout(this)
-
-        val wv = WebView(this).apply {
-            layoutParams = FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT
-            ).apply { setMargins(0, dp(12), 0, dp(48)) }
-            try {
-                settings.javaScriptEnabled = true
-                settings.domStorageEnabled = true
-                settings.allowFileAccess = false
-            } catch (_: Exception) {}
-            setLayerType(View.LAYER_TYPE_HARDWARE, null)
-            webViewClient = object : WebViewClient() {
-                override fun shouldOverrideUrlLoading(view: WebView, request: android.webkit.WebResourceRequest): Boolean {
-                    return try {
-                        val targetHost = request.url.host ?: return true
-                        val initialHost = java.net.URL(examUrl).host
-                        targetHost != initialHost && !targetHost.endsWith(".$initialHost")
-                    } catch (_: Exception) { true }
-                }
-                override fun onPageFinished(view: WebView, u: String) {
-                    super.onPageFinished(view, u)
-                    progressBar?.visibility = View.GONE
-                    try { blockCopyPaste() } catch (_: Exception) {}
-                    try { injectBlockerJs(view) } catch (_: Exception) {}
-                }
-            }
-            setOnLongClickListener { true }
-            setOnTouchListener { _, event -> event.pointerCount > 1 }
-        }
-        webView = wv
-
-        progressBar = View(this).apply {
-            layoutParams = FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, dp(3)
-            ).apply { gravity = Gravity.TOP; topMargin = dp(12) }
-            setBackgroundColor(colorAccent)
-        }
-
-        controlBar = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER
-            layoutParams = FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, dp(48)
-            ).apply { gravity = Gravity.BOTTOM }
-            setBackgroundColor(colorPrimary)
-        }
-
-        addCtrl(R.drawable.ic_reload, "Reload") { try { wv.reload() } catch (_: Exception) {} }
-        controlBar!!.addView(View(this).apply { layoutParams = LinearLayout.LayoutParams(0, 0, 1f) })
-        addCtrl(R.drawable.ic_home, "Home") { try { wv.loadUrl(examUrl) } catch (_: Exception) {} }
-        controlBar!!.addView(View(this).apply { layoutParams = LinearLayout.LayoutParams(0, 0, 1f) })
-        addCtrl(R.drawable.ic_exit, "Exit") {
-            pinGranted = false
-            try { window.clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN) } catch (_: Exception) {}
-            buildHomeScreen()
-        }
-
-        root.addView(wv)
-        root.addView(progressBar)
-        root.addView(controlBar)
-        setContentView(root)
-
-        startPeriodicCheck()
-        wv.loadUrl(examUrl)
-    }
-
-    private fun addCtrl(icon: Int, lbl: String, onClick: () -> Unit) {
-        val btn = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER
-            setPadding(dp(16), dp(4), dp(16), dp(4))
-            setOnClickListener { onClick() }
-            addView(ImageView(this@MainActivity).apply {
-                setImageResource(icon)
-                layoutParams = LinearLayout.LayoutParams(dp(20), dp(20))
-            })
-            addView(TextView(this@MainActivity).apply {
-                text = lbl
-                setTextColor(Color.parseColor("#aaaaaa"))
-                textSize = 9f
-                gravity = Gravity.CENTER
-            })
-        }
-        controlBar?.addView(btn)
-    }
-
-    // ============ PIN / LOCK TASK ============
 
     private fun doLockTask() {
         try {
             window.decorView.systemUiVisibility = (
-                View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY or
-                View.SYSTEM_UI_FLAG_FULLSCREEN or
-                View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
-                View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
-                View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION or
-                View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN)
+                View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY or View.SYSTEM_UI_FLAG_FULLSCREEN or
+                View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
+                View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN)
         } catch (_: Exception) {}
-        try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-            }
-        } catch (_: Exception) {}
-        try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                @Suppress("DEPRECATION")
-                startLockTask()
-            }
-        } catch (_: Exception) {}
+        try { if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON) } catch (_: Exception) {}
+        try { if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) { @Suppress("DEPRECATION") startLockTask() } } catch (_: Exception) {}
     }
 
     private fun waitForPin() {
         Thread {
             val start = System.currentTimeMillis()
             while (!killed) {
-                if (System.currentTimeMillis() - start > 15000) { killApp(); return@Thread }
+                if (System.currentTimeMillis() - start > 15000) { pinGranted = true; return@Thread }
                 try {
                     val am = getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
-                    if (am.isInLockTaskMode ||
-                        (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
-                         am.lockTaskModeState == ActivityManager.LOCK_TASK_MODE_LOCKED)) {
-                        pinGranted = true
-                        return@Thread
-                    }
-                } catch (_: Exception) {
-                    // Device mungkin tidak support lock task — tetap izinkan
-                    pinGranted = true
-                    return@Thread
-                }
+                    if (am.isInLockTaskMode || (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
+                        am.lockTaskModeState == ActivityManager.LOCK_TASK_MODE_LOCKED)) { pinGranted = true; return@Thread }
+                } catch (_: Exception) { pinGranted = true; return@Thread }
                 Thread.sleep(500)
             }
         }.start()
     }
 
     private fun startPeriodicCheck() {
-        val runnable = object : Runnable {
+        handler.postDelayed(object : Runnable {
             override fun run() {
                 if (killed || !pinGranted) return
                 try {
                     val am = getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                        if (!am.isInLockTaskMode &&
-                            am.lockTaskModeState != ActivityManager.LOCK_TASK_MODE_LOCKED) {
-                            killApp(); return
-                        }
-                    }
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
+                        !am.isInLockTaskMode && am.lockTaskModeState != ActivityManager.LOCK_TASK_MODE_LOCKED) { killApp(); return }
                 } catch (_: Exception) {}
                 handler.postDelayed(this, 1000)
             }
-        }
-        handler.postDelayed(runnable, 1000)
+        }, 1000)
     }
 
     override fun onResume() {
         super.onResume()
-        if (pinGranted && !killed) {
-            try { doLockTask() } catch (_: Exception) {}
-        }
+        if (pinGranted && !killed) { try { doLockTask() } catch (_: Exception) {} }
     }
 
     // ============ JS BLOCKER ============
 
     private fun injectBlockerJs(wv: WebView) {
-        try {
-            wv.evaluateJavascript("""
-(function(){
-    if(window.__exambrowser_blocked)return;
-    window.__exambrowser_blocked=true;
-    var css='*{user-select:none!important;-webkit-user-select:none!important;-webkit-touch-callout:none!important}'+
-        'input,textarea,[contenteditable]{user-select:auto!important;-webkit-user-select:auto!important}';
-    var s=document.createElement('style');s.innerHTML=css;document.head.appendChild(s);
-    document.addEventListener('copy',function(e){e.preventDefault();return false},true);
-    document.addEventListener('cut',function(e){e.preventDefault();return false},true);
-    document.addEventListener('paste',function(e){e.preventDefault();return false},true);
-    document.addEventListener('selectstart',function(e){
-        var t=(e.target.tagName||'').toLowerCase();
-        if(t==='input'||t==='textarea'||e.target.isContentEditable)return;
-        e.preventDefault();return false;
-    },true);
-    document.addEventListener('contextmenu',function(e){e.preventDefault();return false},true);
-    document.addEventListener('touchstart',function(e){if(e.touches.length>1)e.preventDefault()},{passive:false});
-})();
-""".trimIndent(), null)
-        } catch (_: Exception) {}
-    }
+        try { wv.evaluateJavascript("(function(){if(window.__exambrowser_blocked)return;window.__exambrowser_blocked=true;var css='*{user-select:none!important;-webkit-user-select:none!important;-webkit-touch-callout:none!important}'+'input,textarea,[contenteditable]{user-select:auto!important;-webkit-user-select:auto!important}';var s=document.createElement('style');s.innerHTML=css;document.head.appendChild(s);document.addEventListener('copy',function(e){e.preventDefault();return false},true);document.addEventListener('cut',function(e){e.preventDefault();return false},true);document.addEventListener('paste',function(e){e.preventDefault();return false},true);document.addEventListener('selectstart',function(e){var t=(e.target.tagName||'').toLowerCase();if(t==='input'||t==='textarea'||e.target.isContentEditable)return;e.preventDefault();return false},true);document.addEventListener('contextmenu',function(e){e.preventDefault();return false},true);document.addEventListener('touchstart',function(e){if(e.touches.length>1)e.preventDefault()},{passive:false});})();", null) } catch (_: Exception) {} }
 
     private fun blockCopyPaste() {
         try {
-            val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-            cm.clearPrimaryClip()
-            if (clipboardListener == null) {
-                clipboardListener = ClipboardManager.OnPrimaryClipChangedListener { try { cm.clearPrimaryClip() } catch (_: Exception) {} }
-                cm.addPrimaryClipChangedListener(clipboardListener!!)
-            }
+            val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager; cm.clearPrimaryClip()
+            if (clipboardListener == null) { clipboardListener = ClipboardManager.OnPrimaryClipChangedListener { try { cm.clearPrimaryClip() } catch (_: Exception) {} }; cm.addPrimaryClipChangedListener(clipboardListener!!) }
         } catch (_: Exception) {}
     }
 
-    // ============ ALARM ============
+    private fun updateStartButton() {
+        val hasText = inputUrl.text.toString().trim().isNotEmpty()
+        btnStart.background = GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE; cornerRadius = dp(6).toFloat()
+            setColor(if (hasText) Color.parseColor("#16213e") else Color.parseColor("#888888"))
+        }
+        btnStart.setTextColor(if (hasText) Color.WHITE else Color.parseColor("#cccccc"))
+    }
+
+    private fun handleStart() {
+        val raw = inputUrl.text.toString().trim()
+        if (raw.isEmpty()) { Toast.makeText(this, "Masukkan URL Server CBT terlebih dahulu.", Toast.LENGTH_SHORT).show(); return }
+        if (!pinGranted) { Toast.makeText(this, "Pin belum disetujui!", Toast.LENGTH_SHORT).show(); return }
+        playAlarm()
+        val isIp = Regex("^\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}").containsMatchIn(raw)
+        examUrl = if (raw.contains("://")) raw else "${if (isIp) "http" else "https"}://$raw"
+        buildExamScreen()
+    }
 
     private fun playAlarm() {
         try {
-            val am = getSystemService(Context.AUDIO_SERVICE) as AudioManager
-            am.setStreamVolume(AudioManager.STREAM_MUSIC, am.getStreamMaxVolume(AudioManager.STREAM_MUSIC), 0)
-            am.setStreamVolume(AudioManager.STREAM_ALARM, am.getStreamMaxVolume(AudioManager.STREAM_ALARM), 0)
-            val resId = resources.getIdentifier("alarm", "raw", packageName)
-            if (resId == 0) return
+            (getSystemService(Context.AUDIO_SERVICE) as AudioManager).apply {
+                setStreamVolume(AudioManager.STREAM_MUSIC, getStreamMaxVolume(AudioManager.STREAM_MUSIC), 0)
+                setStreamVolume(AudioManager.STREAM_ALARM, getStreamMaxVolume(AudioManager.STREAM_ALARM), 0)
+            }
+            val resId = resources.getIdentifier("alarm", "raw", packageName); if (resId == 0) return
             val afd = resources.openRawResourceFd(resId) ?: return
             mediaPlayer?.release(); mediaPlayer = null
-            val mp = MediaPlayer().apply {
+            mediaPlayer = MediaPlayer().apply {
                 setDataSource(afd.fileDescriptor, afd.startOffset, afd.length)
-                setAudioAttributes(AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_ALARM)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC).build())
+                setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ALARM).setContentType(AudioAttributes.CONTENT_TYPE_MUSIC).build())
                 setVolume(1f, 1f)
                 setOnPreparedListener { try { afd.close() } catch (_: Exception) {}; start() }
                 setOnCompletionListener { release(); mediaPlayer = null }
-                setOnErrorListener { _, _, _ ->
-                    try { afd.close() } catch (_: Exception) {}; release(); mediaPlayer = null; true }
+                setOnErrorListener { _, _, _ -> try { afd.close() } catch (_: Exception) {}; release(); mediaPlayer = null; true }
+                prepareAsync()
             }
-            mediaPlayer = mp; mp.prepareAsync()
         } catch (_: Exception) {}
     }
 
-    // ============ BACK / HOME ============
-
     override fun onBackPressed() {}
-    override fun onKeyDown(keyCode: Int, event: KeyEvent?) = when (keyCode) {
-        KeyEvent.KEYCODE_BACK, KeyEvent.KEYCODE_HOME, KeyEvent.KEYCODE_APP_SWITCH -> true
-        else -> super.onKeyDown(keyCode, event)
-    }
+    override fun onKeyDown(keyCode: Int, event: KeyEvent?) = when (keyCode) { KeyEvent.KEYCODE_BACK, KeyEvent.KEYCODE_HOME, KeyEvent.KEYCODE_APP_SWITCH -> true; else -> super.onKeyDown(keyCode, event) }
+    override fun onUserLeaveHint() { if (pinGranted && !killed && webView != null) killApp(); super.onUserLeaveHint() }
 
-    override fun onUserLeaveHint() {
-        // Only kill during active exam (webView exists)
-        if (pinGranted && !killed && webView != null) killApp()
-        super.onUserLeaveHint()
-    }
-
-    private fun killApp() {
-        if (killed) return
-        killed = true
-        try { finishAffinity() } catch (_: Exception) {}
-        try {
-            handler.postDelayed({
-                android.os.Process.killProcess(android.os.Process.myPid())
-                System.exit(0)
-            }, 300)
-        } catch (_: Exception) {
-            System.exit(0)
-        }
-    }
-
+    private fun killApp() { if (killed) return; killed = true; try { finishAffinity() } catch (_: Exception) {}; handler.postDelayed({ android.os.Process.killProcess(android.os.Process.myPid()); System.exit(0) }, 300) }
     private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
 }
