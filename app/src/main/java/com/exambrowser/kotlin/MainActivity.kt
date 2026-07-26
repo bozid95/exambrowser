@@ -60,11 +60,11 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         try {
             buildHomeScreen()
-            // Auto-grant pin untuk debug — app langsung bisa dipakai
-            pinGranted = true
+            handler.postDelayed({ if (!killed && !isFinishing && !isDestroyed) showPinDialog() }, 500)
         } catch (e: Exception) {
             e.printStackTrace()
             Toast.makeText(this, "Error: " + e.message, Toast.LENGTH_LONG).show()
+            pinGranted = true // fallback
         }
     }
 
@@ -386,7 +386,7 @@ class MainActivity : AppCompatActivity() {
             })
             addView(TextView(this@MainActivity).apply {
                 text = lbl
-                setTextColor(Color.parseColor("#aaa"))
+                setTextColor(Color.parseColor("#aaaaaa"))
                 textSize = 9f
                 gravity = Gravity.CENTER
             })
