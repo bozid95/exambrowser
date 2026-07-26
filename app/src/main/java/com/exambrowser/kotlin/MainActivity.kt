@@ -10,6 +10,8 @@ import android.media.AudioManager
 import android.media.MediaPlayer
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.Gravity
 import android.view.KeyEvent
 import android.view.View
@@ -26,7 +28,6 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.ContextCompat
 
 class MainActivity : AppCompatActivity() {
 
@@ -43,23 +44,28 @@ class MainActivity : AppCompatActivity() {
     private var webView: WebView? = null
     private var progressBar: View? = null
     private var controlBar: LinearLayout? = null
+    private var killed = false
+    private val handler = Handler(Looper.getMainLooper())
 
     private val colorPrimary = Color.parseColor("#16213e")
     private val colorAccent = Color.parseColor("#e94560")
     private val colorWhite = Color.WHITE
     private val colorMuted = Color.parseColor("#aaa")
     private val colorBg = Color.parseColor("#f5f5f5")
-    private val colorCard = Color.WHITE
-    private val colorBtnActive = Color.parseColor("#16213e")
-    private val colorBtnDisabled = Color.parseColor("#888888")
     private val colorDivider = Color.parseColor("#e0e0e0")
     private val colorFeatureText = Color.parseColor("#555")
     private val colorRed = Color.parseColor("#dc2626")
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        buildHomeScreen()
-        showPinDialog()
+        try {
+            buildHomeScreen()
+            // Delay dialog slightly so Activity is fully created
+            handler.postDelayed({ if (!killed) showPinDialog() }, 200)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            killApp()
+        }
     }
 
     // ============ HOME SCREEN ============
@@ -80,19 +86,17 @@ class MainActivity : AppCompatActivity() {
             gravity = Gravity.CENTER_HORIZONTAL
         }
 
-        // Card
         val card = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(20), dp(24), dp(20), dp(20))
             background = GradientDrawable().apply {
                 shape = GradientDrawable.RECTANGLE
                 cornerRadius = dp(12).toFloat()
-                setColor(colorCard)
+                setColor(Color.WHITE)
                 setStroke(1, Color.parseColor("#f0f0f0"))
             }
         }
 
-        // Title
         card.addView(TextView(this).apply {
             text = "Exam Browser"
             textSize = 22f
@@ -101,7 +105,6 @@ class MainActivity : AppCompatActivity() {
             setPadding(0, 0, 0, dp(8))
         })
 
-        // Divider
         card.addView(View(this).apply {
             layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, 1
@@ -109,7 +112,6 @@ class MainActivity : AppCompatActivity() {
             setBackgroundColor(colorDivider)
         })
 
-        // Input row
         val inputRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
@@ -136,7 +138,6 @@ class MainActivity : AppCompatActivity() {
         inputRow.addView(inputUrl)
         inputRow.addView(View(this).apply { layoutParams = LinearLayout.LayoutParams(dp(8), 0) })
 
-        // QR Scanner button with VectorDrawable icon
         val qrContainer = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
@@ -146,9 +147,7 @@ class MainActivity : AppCompatActivity() {
                 cornerRadius = dp(6).toFloat()
                 setColor(colorPrimary)
             }
-            setOnClickListener {
-                Toast.makeText(this@MainActivity, "QR Scanner — coming soon", Toast.LENGTH_SHORT).show()
-            }
+            setOnClickListener { Toast.makeText(this@MainActivity, "QR Scanner — coming soon", Toast.LENGTH_SHORT).show() }
         }
         qrContainer.addView(ImageView(this).apply {
             setImageResource(R.drawable.ic_qr_scanner)
@@ -160,7 +159,6 @@ class MainActivity : AppCompatActivity() {
             layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(14))
         })
 
-        // Mulai Ujian
         btnStart = TextView(this).apply {
             text = "Mulai Ujian"
             gravity = Gravity.CENTER
@@ -171,10 +169,7 @@ class MainActivity : AppCompatActivity() {
         card.addView(btnStart)
         updateStartButton()
 
-        // Keluar Aplikasi row
-        card.addView(makeIconLabelRow(
-            R.drawable.ic_exit_app, "Keluar Aplikasi", colorRed, dp(14)
-        ) {
+        card.addView(makeIconLabelRow(R.drawable.ic_exit_app, "Keluar Aplikasi", colorRed, dp(14)) {
             AlertDialog.Builder(this@MainActivity)
                 .setTitle("Keluar Aplikasi")
                 .setMessage("Apakah Anda yakin ingin keluar dari Exam Browser?")
@@ -183,15 +178,11 @@ class MainActivity : AppCompatActivity() {
                 .show()
         })
 
-        // Fitur Aplikasi collapse
         featureToggle = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
             setPadding(0, dp(16), 0, dp(6))
-            setOnClickListener {
-                featuresOpen = !featuresOpen
-                buildFeatureList()
-            }
+            setOnClickListener { featuresOpen = !featuresOpen; buildFeatureList() }
         }
         chevronIcon = ImageView(this).apply {
             layoutParams = LinearLayout.LayoutParams(dp(14), dp(14))
@@ -241,14 +232,13 @@ class MainActivity : AppCompatActivity() {
         featureList.removeAllViews()
         chevronIcon.rotation = if (featuresOpen) 180f else 0f
         if (!featuresOpen) return
-
         val items = arrayOf(
             Pair(R.drawable.ic_lock, "Kunci perangkat (Lock Task)"),
             Pair(R.drawable.ic_no_screenshot, "Nonaktifkan screenshot"),
             Pair(R.drawable.ic_copy_paste, "Blokir copy/paste"),
             Pair(R.drawable.ic_globe, "Navigasi terbatas (hostname saja)")
         )
-        for ((icon, label) in items) {
+        for ((icon, lbl) in items) {
             featureList.addView(LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
                 setPadding(0, dp(5), 0, dp(5))
@@ -257,7 +247,7 @@ class MainActivity : AppCompatActivity() {
                     layoutParams = LinearLayout.LayoutParams(dp(16), dp(16)).apply { setMargins(0, 0, dp(8), 0) }
                 })
                 addView(TextView(this@MainActivity).apply {
-                    text = label
+                    text = lbl
                     setTextColor(colorFeatureText)
                     textSize = 12f
                 })
@@ -270,9 +260,9 @@ class MainActivity : AppCompatActivity() {
         btnStart.background = GradientDrawable().apply {
             shape = GradientDrawable.RECTANGLE
             cornerRadius = dp(6).toFloat()
-            setColor(if (hasText) colorBtnActive else colorBtnDisabled)
+            setColor(if (hasText) Color.parseColor("#16213e") else Color.parseColor("#888888"))
         }
-        btnStart.setTextColor(if (hasText) colorWhite else Color.parseColor("#cccccc"))
+        btnStart.setTextColor(if (hasText) Color.WHITE else Color.parseColor("#cccccc"))
     }
 
     private fun handleStart() {
@@ -294,56 +284,68 @@ class MainActivity : AppCompatActivity() {
     // ============ PIN DIALOG ============
 
     private fun showPinDialog() {
-        AlertDialog.Builder(this)
-            .setTitle("Peringatan!")
-            .setMessage("Anda wajib menyematkan (pin) aplikasi untuk mengerjakan ujian.\n\nJika Anda menolak, aplikasi akan ditutup.")
-            .setCancelable(false)
-            .setPositiveButton("Saya Setuju") { _, _ -> doLockTask(); waitForPin() }
-            .setNegativeButton("Tidak Setuju") { _, _ -> killApp() }
-            .show()
+        if (isFinishing || isDestroyed) return
+        try {
+            AlertDialog.Builder(this)
+                .setTitle("Peringatan!")
+                .setMessage("Anda wajib menyematkan (pin) aplikasi untuk mengerjakan ujian.\n\nJika Anda menolak, aplikasi akan ditutup.")
+                .setCancelable(false)
+                .setPositiveButton("Saya Setuju") { _, _ -> doLockTask(); waitForPin() }
+                .setNegativeButton("Tidak Setuju") { _, _ ->
+                    handler.postDelayed({ killApp() }, 100)
+                }
+                .show()
+        } catch (e: Exception) {
+            e.printStackTrace()
+            killApp()
+        }
     }
 
     // ============ EXAM SCREEN ============
 
     private fun buildExamScreen() {
-        window.addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
+        try {
+            window.addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
+        } catch (_: Exception) {}
         val root = FrameLayout(this)
-        val safeTop = dp(12)
 
         val wv = WebView(this).apply {
             layoutParams = FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT
-            ).apply { setMargins(0, safeTop, 0, dp(48)) }
-            settings.javaScriptEnabled = true
-            settings.domStorageEnabled = true
-            settings.allowFileAccess = false
+            ).apply { setMargins(0, dp(12), 0, dp(48)) }
+            try {
+                settings.javaScriptEnabled = true
+                settings.domStorageEnabled = true
+                settings.allowFileAccess = false
+            } catch (_: Exception) {}
             setLayerType(View.LAYER_TYPE_HARDWARE, null)
             webViewClient = object : WebViewClient() {
-                override fun shouldOverrideUrlLoading(view: WebView, request: android.webkit.WebResourceRequest) =
-                    try {
+                override fun shouldOverrideUrlLoading(view: WebView, request: android.webkit.WebResourceRequest): Boolean {
+                    return try {
                         val targetHost = request.url.host ?: return true
                         val initialHost = java.net.URL(examUrl).host
                         targetHost != initialHost && !targetHost.endsWith(".$initialHost")
                     } catch (_: Exception) { true }
+                }
                 override fun onPageFinished(view: WebView, u: String) {
                     super.onPageFinished(view, u)
                     progressBar?.visibility = View.GONE
-                    blockCopyPaste()
-                    injectBlockerJs(view)
+                    try { blockCopyPaste() } catch (_: Exception) {}
+                    try { injectBlockerJs(view) } catch (_: Exception) {}
                 }
             }
             setOnLongClickListener { true }
+            setOnTouchListener { _, event -> event.pointerCount > 1 }
         }
         webView = wv
 
         progressBar = View(this).apply {
             layoutParams = FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, dp(3)
-            ).apply { gravity = Gravity.TOP; topMargin = safeTop }
+            ).apply { gravity = Gravity.TOP; topMargin = dp(12) }
             setBackgroundColor(colorAccent)
         }
 
-        // ControlBar with VectorDrawable icons
         controlBar = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
@@ -353,32 +355,13 @@ class MainActivity : AppCompatActivity() {
             setBackgroundColor(colorPrimary)
         }
 
-        fun addCtrl(icon: Int, label: String, onClick: () -> Unit) {
-            val btn = LinearLayout(this).apply {
-                orientation = LinearLayout.VERTICAL
-                gravity = Gravity.CENTER
-                setPadding(dp(16), dp(4), dp(16), dp(4))
-                setOnClickListener { onClick() }
-                addView(ImageView(this@MainActivity).apply {
-                    setImageResource(icon)
-                    layoutParams = LinearLayout.LayoutParams(dp(20), dp(20))
-                })
-                addView(TextView(this@MainActivity).apply {
-                    text = label
-                    setTextColor(Color.parseColor("#aaa"))
-                    textSize = 9f
-                    gravity = Gravity.CENTER
-                })
-            }
-            controlBar!!.addView(btn)
-        }
-        addCtrl(R.drawable.ic_reload, "Reload") { wv.reload() }
+        addCtrl(R.drawable.ic_reload, "Reload") { try { wv.reload() } catch (_: Exception) {} }
         controlBar!!.addView(View(this).apply { layoutParams = LinearLayout.LayoutParams(0, 0, 1f) })
-        addCtrl(R.drawable.ic_home, "Home") { wv.loadUrl(examUrl) }
+        addCtrl(R.drawable.ic_home, "Home") { try { wv.loadUrl(examUrl) } catch (_: Exception) {} }
         controlBar!!.addView(View(this).apply { layoutParams = LinearLayout.LayoutParams(0, 0, 1f) })
         addCtrl(R.drawable.ic_exit, "Exit") {
             pinGranted = false
-            window.clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
+            try { window.clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN) } catch (_: Exception) {}
             buildHomeScreen()
         }
 
@@ -389,6 +372,26 @@ class MainActivity : AppCompatActivity() {
 
         startPeriodicCheck()
         wv.loadUrl(examUrl)
+    }
+
+    private fun addCtrl(icon: Int, lbl: String, onClick: () -> Unit) {
+        val btn = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            setPadding(dp(16), dp(4), dp(16), dp(4))
+            setOnClickListener { onClick() }
+            addView(ImageView(this@MainActivity).apply {
+                setImageResource(icon)
+                layoutParams = LinearLayout.LayoutParams(dp(20), dp(20))
+            })
+            addView(TextView(this@MainActivity).apply {
+                text = lbl
+                setTextColor(Color.parseColor("#aaa"))
+                textSize = 9f
+                gravity = Gravity.CENTER
+            })
+        }
+        controlBar?.addView(btn)
     }
 
     // ============ PIN / LOCK TASK ============
@@ -402,11 +405,16 @@ class MainActivity : AppCompatActivity() {
                 View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
                 View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION or
                 View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN)
+        } catch (_: Exception) {}
+        try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                 window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             }
+        } catch (_: Exception) {}
+        try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                @Suppress("DEPRECATION") startLockTask()
+                @Suppress("DEPRECATION")
+                startLockTask()
             }
         } catch (_: Exception) {}
     }
@@ -414,14 +422,21 @@ class MainActivity : AppCompatActivity() {
     private fun waitForPin() {
         Thread {
             val start = System.currentTimeMillis()
-            while (true) {
+            while (!killed) {
                 if (System.currentTimeMillis() - start > 15000) { killApp(); return@Thread }
                 try {
                     val am = getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
-                    if (am.isInLockTaskMode || am.lockTaskModeState == ActivityManager.LOCK_TASK_MODE_LOCKED) {
-                        pinGranted = true; return@Thread
+                    if (am.isInLockTaskMode ||
+                        (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
+                         am.lockTaskModeState == ActivityManager.LOCK_TASK_MODE_LOCKED)) {
+                        pinGranted = true
+                        return@Thread
                     }
-                } catch (_: Exception) {}
+                } catch (_: Exception) {
+                    // Device mungkin tidak support lock task — tetap izinkan
+                    pinGranted = true
+                    return@Thread
+                }
                 Thread.sleep(500)
             }
         }.start()
@@ -430,36 +445,34 @@ class MainActivity : AppCompatActivity() {
     private fun startPeriodicCheck() {
         val runnable = object : Runnable {
             override fun run() {
-                if (!pinGranted) return
+                if (killed || !pinGranted) return
                 try {
                     val am = getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
-                    if (!am.isInLockTaskMode && am.lockTaskModeState != ActivityManager.LOCK_TASK_MODE_LOCKED) {
-                        killApp(); return
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                        if (!am.isInLockTaskMode &&
+                            am.lockTaskModeState != ActivityManager.LOCK_TASK_MODE_LOCKED) {
+                            killApp(); return
+                        }
                     }
-                } catch (_: Exception) { killApp(); return }
-                window.decorView.postDelayed(this, 1000)
+                } catch (_: Exception) {}
+                handler.postDelayed(this, 1000)
             }
         }
-        window.decorView.postDelayed(runnable, 1000)
+        handler.postDelayed(runnable, 1000)
     }
 
     override fun onResume() {
         super.onResume()
-        if (pinGranted) {
-            try {
-                val am = getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
-                if (!am.isInLockTaskMode && am.lockTaskModeState != ActivityManager.LOCK_TASK_MODE_LOCKED) {
-                    killApp(); return
-                }
-                doLockTask()
-            } catch (_: Exception) { killApp() }
+        if (pinGranted && !killed) {
+            try { doLockTask() } catch (_: Exception) {}
         }
     }
 
     // ============ JS BLOCKER ============
 
     private fun injectBlockerJs(wv: WebView) {
-        wv.evaluateJavascript("""
+        try {
+            wv.evaluateJavascript("""
 (function(){
     if(window.__exambrowser_blocked)return;
     window.__exambrowser_blocked=true;
@@ -478,6 +491,7 @@ class MainActivity : AppCompatActivity() {
     document.addEventListener('touchstart',function(e){if(e.touches.length>1)e.preventDefault()},{passive:false});
 })();
 """.trimIndent(), null)
+        } catch (_: Exception) {}
     }
 
     private fun blockCopyPaste() {
@@ -485,7 +499,7 @@ class MainActivity : AppCompatActivity() {
             val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
             cm.clearPrimaryClip()
             if (clipboardListener == null) {
-                clipboardListener = ClipboardManager.OnPrimaryClipChangedListener { cm.clearPrimaryClip() }
+                clipboardListener = ClipboardManager.OnPrimaryClipChangedListener { try { cm.clearPrimaryClip() } catch (_: Exception) {} }
                 cm.addPrimaryClipChangedListener(clipboardListener!!)
             }
         } catch (_: Exception) {}
@@ -517,19 +531,31 @@ class MainActivity : AppCompatActivity() {
         } catch (_: Exception) {}
     }
 
-    // ============ BLOCK BACK & HOME ============
+    // ============ BACK / HOME ============
 
     override fun onBackPressed() {}
     override fun onKeyDown(keyCode: Int, event: KeyEvent?) = when (keyCode) {
         KeyEvent.KEYCODE_BACK, KeyEvent.KEYCODE_HOME, KeyEvent.KEYCODE_APP_SWITCH -> true
         else -> super.onKeyDown(keyCode, event)
     }
-    override fun onUserLeaveHint() { if (pinGranted) killApp(); super.onUserLeaveHint() }
+
+    override fun onUserLeaveHint() {
+        if (pinGranted && !killed) killApp()
+        super.onUserLeaveHint()
+    }
 
     private fun killApp() {
-        finishAffinity()
-        android.os.Process.killProcess(android.os.Process.myPid())
-        System.exit(0)
+        if (killed) return
+        killed = true
+        try { finishAffinity() } catch (_: Exception) {}
+        try {
+            handler.postDelayed({
+                android.os.Process.killProcess(android.os.Process.myPid())
+                System.exit(0)
+            }, 300)
+        } catch (_: Exception) {
+            System.exit(0)
+        }
     }
 
     private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
