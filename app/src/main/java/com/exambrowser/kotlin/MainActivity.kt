@@ -32,6 +32,10 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var inputUrl: EditText
     private lateinit var btnStart: TextView
+    private lateinit var featureToggle: LinearLayout
+    private lateinit var featureList: LinearLayout
+    private lateinit var chevronIcon: ImageView
+    private var featuresOpen = false
     private var pinGranted = false
     private var mediaPlayer: MediaPlayer? = null
     private var clipboardListener: ClipboardManager.OnPrimaryClipChangedListener? = null
@@ -85,6 +89,10 @@ class MainActivity : AppCompatActivity() {
 
         // Title
         card.addView(makeText("Exam Browser", 24f, "#111827", Gravity.CENTER).apply {
+            setPadding(0, 0, 0, dp(4))
+        })
+        // Subtitle
+        card.addView(makeText("Aplikasi Ujian Terkunci untuk CBT", 12f, "#9ca3af", Gravity.CENTER).apply {
             setPadding(0, 0, 0, dp(16))
         })
 
@@ -147,33 +155,35 @@ class MainActivity : AppCompatActivity() {
         card.addView(btnStart)
         updateStartButton()
 
-        // Features list (always visible)
-        card.addView(space(0, 24))
-        card.addView(makeText("Fitur Aplikasi", 12f, "#9ca3af", Gravity.CENTER).apply {
-            setPadding(0, 0, 0, dp(12))
-        })
+        // Fitur Aplikasi (collapse)
+        card.addView(space(0, 18))
 
-        val features = listOf(
-            R.drawable.ic_lock to "Kunci perangkat (Lock Task)",
-            R.drawable.ic_no_screenshot to "Nonaktifkan screenshot",
-            R.drawable.ic_copy_paste to "Blokir copy/paste",
-            R.drawable.ic_globe to "Navigasi terbatas (hostname saja)"
-        )
-        for ((icon, label) in features) {
-            val row = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                setPadding(0, dp(5), 0, dp(5))
-            }
-            val iconView = ImageView(this).apply {
-                setImageResource(icon)
-                layoutParams = LinearLayout.LayoutParams(dp(18), dp(18))
-                setColorFilter(parse("#6b7280"))
-            }
-            row.addView(iconView)
-            row.addView(space(10, 0))
-            row.addView(makeText(label, 12f, "#6b7280"))
-            card.addView(row)
+        featureToggle = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+            setPadding(0, dp(4), 0, dp(4))
+            setOnClickListener { featuresOpen = !featuresOpen; buildFeatureList() }
         }
+        chevronIcon = ImageView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(dp(14), dp(14))
+            setImageResource(R.drawable.ic_chevron)
+            setColorFilter(parse("#9ca3af"))
+        }
+        featureToggle.addView(chevronIcon)
+        featureToggle.addView(space(4, 0))
+        featureToggle.addView(makeText("Fitur Aplikasi", 12f, "#9ca3af"))
+        card.addView(featureToggle)
+
+        featureList = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(6), 0, dp(6), 0)
+        }
+        buildFeatureList()
+        card.addView(featureList)
+
+        // Developer credit
+        card.addView(space(0, 20))
+        card.addView(makeText("Developed by Maswa, S.Pd.", 10f, "#d1d5db", Gravity.CENTER))
 
         wrapper.addView(card)
         wrapper.addView(space(0, 24))
@@ -205,6 +215,42 @@ class MainActivity : AppCompatActivity() {
         setContentView(root)
     }
 
+    private fun buildFeatureList() {
+        featureList.removeAllViews()
+        chevronIcon.rotation = if (featuresOpen) 180f else 0f
+        if (!featuresOpen) return
+
+        val features = listOf(
+            R.drawable.ic_lock to "Kunci perangkat (Lock Task) — Mencegah akses keluar aplikasi",
+            R.drawable.ic_no_screenshot to "Nonaktifkan screenshot — Mencegah tangkapan layar",
+            R.drawable.ic_copy_paste to "Blokir copy/paste — Mencegah kecurangan ujian",
+            R.drawable.ic_globe to "Navigasi terbatas — Hanya hostname yang sama",
+            R.drawable.ic_qr_scanner to "QR Scanner — Pindai QR Code untuk URL ujian",
+            null to "Audio Alarm — Alarm berbunyi saat ujian dimulai",
+            null to "PIN Exit — PIN 1234 untuk keluar dari ujian",
+            null to "Status Bar — Jam & baterai selalu terlihat"
+        )
+        for ((icon, label) in features) {
+            val row = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                setPadding(0, dp(5), 0, dp(5))
+            }
+            if (icon != null) {
+                val iconView = ImageView(this).apply {
+                    setImageResource(icon)
+                    layoutParams = LinearLayout.LayoutParams(dp(18), dp(18))
+                    setColorFilter(parse("#6b7280"))
+                }
+                row.addView(iconView)
+                row.addView(space(10, 0))
+            } else {
+                row.addView(space(28, 0))
+            }
+            row.addView(makeText(label, 11f, "#6b7280"))
+            featureList.addView(row)
+        }
+    }
+
     private fun updateStartButton() {
         val active = inputUrl.text.toString().trim().isNotEmpty()
         btnStart.background = roundedRect(if (active) "#111827" else "#9ca3af", 12, 0, null)
@@ -232,7 +278,7 @@ class MainActivity : AppCompatActivity() {
         val statusH = dp(26)
 
         // Custom status bar
-        val statusBar = LinearLayout(this).apply {
+        val sb = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             layoutParams = FrameLayout.LayoutParams(MATCH, statusH).apply { gravity = Gravity.TOP }
@@ -240,11 +286,11 @@ class MainActivity : AppCompatActivity() {
             setPadding(dp(12), 0, dp(12), 0)
         }
         timeView = makeText("00:00", 12f, "#ffffff")
-        statusBar.addView(timeView)
-        statusBar.addView(space(0, 0, 1f))
+        sb.addView(timeView)
+        sb.addView(space(0, 0, 1f))
         batteryView = makeText("100%", 12f, "#ffffff")
-        statusBar.addView(batteryView)
-        root.addView(statusBar)
+        sb.addView(batteryView)
+        root.addView(sb)
 
         // WebView
         val wv = WebView(this).apply {
@@ -296,11 +342,10 @@ class MainActivity : AppCompatActivity() {
                 setPadding(dp(16), dp(4), dp(16), dp(4))
                 setOnClickListener { cl() }
             }
-            val img = ImageView(this).apply {
+            btn.addView(ImageView(this).apply {
                 setImageResource(icon)
                 layoutParams = LinearLayout.LayoutParams(dp(22), dp(22))
-            }
-            btn.addView(img)
+            })
             btn.addView(makeText(lbl, 9f, "#9ca3af", Gravity.CENTER))
             cb.addView(btn)
         }
