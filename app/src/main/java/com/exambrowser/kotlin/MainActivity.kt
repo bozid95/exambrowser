@@ -1,9 +1,11 @@
 package com.exambrowser.kotlin
 
+import android.animation.LayoutTransition
 import android.app.ActivityManager
 import android.content.ClipboardManager
 import android.content.Context
 import android.graphics.Color
+import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.media.AudioAttributes
 import android.media.AudioManager
@@ -17,6 +19,7 @@ import android.view.Gravity
 import android.view.KeyEvent
 import android.view.View
 import android.view.ViewGroup
+import android.view.ViewOutlineProvider
 import android.view.WindowManager
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -50,7 +53,6 @@ class MainActivity : AppCompatActivity() {
 
     private val qrLauncher = registerForActivityResult(ScanContract()) { result ->
         if (result.contents != null) inputUrl.setText(result.contents)
-        // Restore orientation
         requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
     }
 
@@ -67,35 +69,41 @@ class MainActivity : AppCompatActivity() {
     // ═══════════════════════════════════
     private fun buildHome() {
         val root = FrameLayout(this).apply {
-            setBackgroundColor(parse("#f8f9fa"))
+            setBackgroundColor(parse("#F3F4F6")) // Latar belakang abu-abu terang modern
             layoutParams = matchParent()
         }
-        val scroll = ScrollView(this).apply { layoutParams = matchParent() }
+        val scroll = ScrollView(this).apply {
+            layoutParams = matchParent()
+            isFillViewport = true // Agar konten selalu vertikal tengah jika layar besar
+        }
         val wrapper = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
-            setPadding(dp(20), dp(20), dp(20), dp(24))
+            setPadding(dp(20), dp(24), dp(20), dp(24))
         }
 
         // ── Card ──
         val card = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(24), dp(28), dp(24), dp(24))
+            setPadding(dp(24), dp(32), dp(24), dp(28))
             background = GradientDrawable().apply {
                 shape = GradientDrawable.RECTANGLE
-                cornerRadius = dp(20).toFloat()
+                cornerRadius = dp(24).toFloat()
                 setColor(Color.WHITE)
-                setStroke(1, parse("#e5e7eb"))
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                elevation = dp(8).toFloat()
+                outlineProvider = ViewOutlineProvider.BACKGROUND
             }
         }
 
         // Title
-        card.addView(makeText("Exam Browser", 24f, "#111827", Gravity.CENTER).apply {
+        card.addView(makeText("Exam Browser", 26f, "#1F2937", Gravity.CENTER, isBold = true).apply {
             setPadding(0, 0, 0, dp(4))
         })
         // Subtitle
-        card.addView(makeText("Aplikasi Ujian Terkunci untuk CBT", 12f, "#9ca3af", Gravity.CENTER).apply {
-            setPadding(0, 0, 0, dp(16))
+        card.addView(makeText("Aplikasi Ujian Terkunci untuk CBT", 13f, "#6B7280", Gravity.CENTER).apply {
+            setPadding(0, 0, 0, dp(20))
         })
 
         // Divider
@@ -105,16 +113,18 @@ class MainActivity : AppCompatActivity() {
         val inputRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
+            layoutParams = LinearLayout.LayoutParams(MATCH, dp(54)) // Tinggi diseragamkan
         }
 
         inputUrl = EditText(this).apply {
-            hint = "Masukan Url atau IP CBT"
-            setHintTextColor(parse("#9ca3af"))
-            setTextColor(Color.BLACK)
-            textSize = 14f
-            background = roundedRect("#f9fafb", 10, 1, "#e5e7eb")
-            setPadding(dp(14), dp(13), dp(14), dp(13))
-            layoutParams = LinearLayout.LayoutParams(0, dp(48), 1f)
+            hint = "Masukan URL atau IP CBT"
+            setHintTextColor(parse("#9CA3AF"))
+            setTextColor(parse("#1F2937"))
+            textSize = 15f
+            background = roundedRect("#F9FAFB", 12, 1, "#E5E7EB")
+            setPadding(dp(16), 0, dp(16), 0)
+            layoutParams = LinearLayout.LayoutParams(0, MATCH, 1f)
+            isSingleLine = true
         }
         inputUrl.addTextChangedListener(object : android.text.TextWatcher {
             override fun afterTextChanged(s: android.text.Editable?) { updateStartButton() }
@@ -122,28 +132,30 @@ class MainActivity : AppCompatActivity() {
             override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
         })
         inputRow.addView(inputUrl)
-        inputRow.addView(space(8, 0))
+        inputRow.addView(space(10, 0)) // Jarak antara text box dan QR
 
         // QR button
         val qrBtn = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
-            setPadding(dp(12), dp(10), dp(12), dp(10))
-            background = roundedRect("#111827", 10, 0, null)
+            layoutParams = LinearLayout.LayoutParams(dp(54), MATCH)
+            background = roundedRect("#EFF6FF", 12, 1, "#BFDBFE") // Warna tombol QR kebiruan
             setOnClickListener { startQrScanner() }
         }
         val qrIcon = ImageView(this).apply {
             setImageResource(R.drawable.ic_qr_scanner)
             layoutParams = LinearLayout.LayoutParams(dp(24), dp(24))
+            setColorFilter(parse("#2563EB")) // Icon QR warna primary blue
         }
         qrBtn.addView(qrIcon)
         inputRow.addView(qrBtn)
         card.addView(inputRow)
-        card.addView(space(0, 18))
+        card.addView(space(0, 24))
 
-        // Mulai Ujian
-        btnStart = makeText("Mulai Ujian", 15f, "#ffffff", Gravity.CENTER)
-        btnStart.setPadding(0, dp(14), 0, dp(14))
+        // Mulai Ujian Button
+        btnStart = makeText("Mulai Ujian", 16f, "#FFFFFF", Gravity.CENTER, isBold = true)
+        btnStart.layoutParams = LinearLayout.LayoutParams(MATCH, dp(54))
+        btnStart.gravity = Gravity.CENTER
         btnStart.setOnClickListener {
             if (!pinGranted) {
                 doLockTask()
@@ -158,60 +170,64 @@ class MainActivity : AppCompatActivity() {
         updateStartButton()
 
         // Fitur Aplikasi (collapse)
-        card.addView(space(0, 18))
+        card.addView(space(0, 24))
 
         featureToggle = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
-            setPadding(0, dp(4), 0, dp(4))
+            setPadding(0, dp(8), 0, dp(8))
             setOnClickListener { featuresOpen = !featuresOpen; buildFeatureList() }
         }
         chevronIcon = ImageView(this).apply {
-            layoutParams = LinearLayout.LayoutParams(dp(14), dp(14))
+            layoutParams = LinearLayout.LayoutParams(dp(16), dp(16))
             setImageResource(R.drawable.ic_chevron)
-            setColorFilter(parse("#9ca3af"))
+            setColorFilter(parse("#9CA3AF"))
         }
         featureToggle.addView(chevronIcon)
-        featureToggle.addView(space(4, 0))
-        featureToggle.addView(makeText("Fitur Aplikasi", 12f, "#9ca3af"))
+        featureToggle.addView(space(6, 0))
+        featureToggle.addView(makeText("Fitur Keamanan", 13f, "#6B7280", isBold = true))
         card.addView(featureToggle)
 
         featureList = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(6), 0, dp(6), 0)
+            setPadding(dp(8), dp(4), dp(8), 0)
+            layoutTransition = LayoutTransition() // Memberikan animasi mulus saat dibuka/tutup
         }
         buildFeatureList()
         card.addView(featureList)
 
         // Developer credit
-        card.addView(space(0, 20))
-        card.addView(makeText("Developed by Maswa, S.Pd.", 10f, "#d1d5db", Gravity.CENTER))
+        card.addView(space(0, 24))
+        card.addView(makeText("Developed by Maswa, S.Pd.", 11f, "#D1D5DB", Gravity.CENTER))
 
         wrapper.addView(card)
-        wrapper.addView(space(0, 24))
+        wrapper.addView(space(0, 32))
 
         // Exit row
         val exitRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
+            setPadding(dp(16), dp(10), dp(16), dp(10))
+            background = roundedRect("#FEF2F2", 20, 0, null)
             setOnClickListener {
                 AlertDialog.Builder(this@MainActivity)
                     .setTitle("Keluar Aplikasi")
-                    .setMessage("Apakah Anda yakin ingin keluar?")
+                    .setMessage("Apakah Anda yakin ingin keluar dari aplikasi?")
                     .setPositiveButton("Ya, Keluar") { _, _ -> killApp() }
-                    .setNegativeButton("Batal", null).show()
+                    .setNegativeButton("Batal", null)
+                    .show()
             }
         }
         val exitIcon = ImageView(this).apply {
             setImageResource(R.drawable.ic_exit_app)
-            layoutParams = LinearLayout.LayoutParams(dp(16), dp(16))
-            setColorFilter(parse("#dc2626"))
+            layoutParams = LinearLayout.LayoutParams(dp(18), dp(18))
+            setColorFilter(parse("#DC2626"))
         }
         exitRow.addView(exitIcon)
-        exitRow.addView(space(6, 0))
-        exitRow.addView(makeText("Keluar Aplikasi", 13f, "#dc2626"))
+        exitRow.addView(space(8, 0))
+        exitRow.addView(makeText("Keluar Aplikasi", 14f, "#DC2626", isBold = true))
+        
         wrapper.addView(exitRow)
-
         scroll.addView(wrapper)
         root.addView(scroll)
         setContentView(root)
@@ -219,43 +235,49 @@ class MainActivity : AppCompatActivity() {
 
     private fun buildFeatureList() {
         featureList.removeAllViews()
-        chevronIcon.rotation = if (featuresOpen) 180f else 0f
+        chevronIcon.animate().rotation(if (featuresOpen) 180f else 0f).setDuration(200).start()
         if (!featuresOpen) return
 
         val features = listOf(
-            R.drawable.ic_lock to "Kunci perangkat (Lock Task) — Mencegah akses keluar aplikasi",
+            R.drawable.ic_lock to "Kunci perangkat (Lock Task) — Mencegah keluar aplikasi",
             R.drawable.ic_no_screenshot to "Nonaktifkan screenshot — Mencegah tangkapan layar",
             R.drawable.ic_copy_paste to "Blokir copy/paste — Mencegah kecurangan ujian",
-            R.drawable.ic_globe to "Navigasi terbatas — Hanya hostname yang sama",
+            R.drawable.ic_globe to "Navigasi terbatas — Hanya untuk hostname yang sama",
             R.drawable.ic_qr_scanner to "QR Scanner — Pindai QR Code untuk URL ujian",
-            R.drawable.ic_music to "Audio Alarm — Alarm berbunyi saat ujian dimulai",
-            R.drawable.ic_pin_exit to "PIN Exit — PIN 1234 untuk keluar dari ujian",
+            R.drawable.ic_music to "Audio Alarm — Alarm peringatan ujian dimulai",
+            R.drawable.ic_pin_exit to "PIN Exit — Membutuhkan PIN untuk keluar dari ujian",
             R.drawable.ic_statusbar to "Status Bar — Jam & baterai selalu terlihat"
         )
         for ((icon, label) in features) {
             val row = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
-                setPadding(0, dp(5), 0, dp(5))
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(0, dp(8), 0, dp(8))
             }
             val iconView = ImageView(this).apply {
                 setImageResource(icon)
-                layoutParams = LinearLayout.LayoutParams(dp(18), dp(18))
-                setColorFilter(parse("#6b7280"))
+                layoutParams = LinearLayout.LayoutParams(dp(20), dp(20))
+                setColorFilter(parse("#6B7280"))
             }
             row.addView(iconView)
-            row.addView(makeText(label, 11f, "#6b7280"))
+            row.addView(space(12, 0))
+            row.addView(makeText(label, 12f, "#4B5563"))
             featureList.addView(row)
         }
     }
 
     private fun updateStartButton() {
         val active = inputUrl.text.toString().trim().isNotEmpty()
-        btnStart.background = roundedRect(if (active) "#111827" else "#9ca3af", 12, 0, null)
-        btnStart.setTextColor(if (active) Color.WHITE else parse("#e5e7eb"))
+        // Warna biru modern jika terisi, abu-abu jika kosong
+        btnStart.background = roundedRect(if (active) "#2563EB" else "#E5E7EB", 14, 0, null)
+        btnStart.setTextColor(if (active) Color.WHITE else parse("#9CA3AF"))
+        
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            btnStart.elevation = if (active) dp(4).toFloat() else 0f
+        }
     }
 
     private fun startQrScanner() {
-        // Lock to portrait before launching camera
         requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         qrLauncher.launch(ScanOptions().apply {
             setDesiredBarcodeFormats(ScanOptions.QR_CODE)
@@ -274,27 +296,27 @@ class MainActivity : AppCompatActivity() {
         window.addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
 
         val root = FrameLayout(this)
-        val statusH = dp(26)
+        val statusH = dp(28)
 
         // Custom status bar
         val sb = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             layoutParams = FrameLayout.LayoutParams(MATCH, statusH).apply { gravity = Gravity.TOP }
-            setBackgroundColor(parse("#0f172a"))
-            setPadding(dp(12), 0, dp(12), 0)
+            setBackgroundColor(parse("#1E293B")) // Slate 800
+            setPadding(dp(16), 0, dp(16), 0)
         }
-        timeView = makeText("00:00", 12f, "#ffffff")
+        timeView = makeText("00:00", 12f, "#FFFFFF", isBold = true)
         sb.addView(timeView)
         sb.addView(space(0, 0, 1f))
-        batteryView = makeText("100%", 12f, "#ffffff")
+        batteryView = makeText("100%", 12f, "#FFFFFF", isBold = true)
         sb.addView(batteryView)
         root.addView(sb)
 
         // WebView
         val wv = WebView(this).apply {
             layoutParams = FrameLayout.LayoutParams(MATCH, MATCH).apply {
-                topMargin = statusH; bottomMargin = dp(52)
+                topMargin = statusH; bottomMargin = dp(56)
             }
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = true
@@ -323,7 +345,7 @@ class MainActivity : AppCompatActivity() {
             layoutParams = FrameLayout.LayoutParams(MATCH, dp(3)).apply {
                 gravity = Gravity.TOP; topMargin = statusH
             }
-            setBackgroundColor(parse("#ef4444"))
+            setBackgroundColor(parse("#3B82F6")) // Biru yang senada
         }
         root.addView(progressBar)
 
@@ -331,21 +353,26 @@ class MainActivity : AppCompatActivity() {
         val cb = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
-            layoutParams = FrameLayout.LayoutParams(MATCH, dp(52)).apply { gravity = Gravity.BOTTOM }
-            setBackgroundColor(parse("#111827"))
+            layoutParams = FrameLayout.LayoutParams(MATCH, dp(56)).apply { gravity = Gravity.BOTTOM }
+            setBackgroundColor(parse("#0F172A")) // Slate 900
         }
         fun addCtrl(icon: Int, lbl: String, cl: () -> Unit) {
             val btn = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
                 gravity = Gravity.CENTER
-                setPadding(dp(16), dp(4), dp(16), dp(4))
+                setPadding(dp(20), dp(6), dp(20), dp(6))
                 setOnClickListener { cl() }
+                // Ripple effect programmatically
+                val outValue = android.util.TypedValue()
+                theme.resolveAttribute(android.R.attr.selectableItemBackgroundBorderless, outValue, true)
+                setBackgroundResource(outValue.resourceId)
             }
             btn.addView(ImageView(this).apply {
                 setImageResource(icon)
-                layoutParams = LinearLayout.LayoutParams(dp(22), dp(22))
+                layoutParams = LinearLayout.LayoutParams(dp(24), dp(24))
+                setColorFilter(Color.WHITE)
             })
-            btn.addView(makeText(lbl, 9f, "#9ca3af", Gravity.CENTER))
+            btn.addView(makeText(lbl, 10f, "#9CA3AF", Gravity.CENTER).apply { setPadding(0, dp(2), 0, 0) })
             cb.addView(btn)
         }
         addCtrl(R.drawable.ic_reload, "Reload") { wv.reload() }
@@ -367,28 +394,34 @@ class MainActivity : AppCompatActivity() {
     private fun showPinDialog() {
         if (isFinishing || isDestroyed) return
         AlertDialog.Builder(this)
-            .setTitle("Peringatan!")
-            .setMessage("Anda wajib menyematkan (pin) aplikasi untuk mengerjakan ujian.\n\nJika Anda menolak, aplikasi akan ditutup.")
+            .setTitle("Peringatan Keamanan")
+            .setMessage("Anda wajib menyematkan (pin) aplikasi untuk mengerjakan ujian.\n\nJika Anda menolak, aplikasi akan ditutup untuk mencegah kecurangan.")
             .setCancelable(false)
             .setPositiveButton("Saya Setuju") { _, _ -> doLockTask(); waitForPin() }
-            .setNegativeButton("Tidak Setuju") { _, _ -> handler.postDelayed({ killApp() }, 150) }
+            .setNegativeButton("Keluar") { _, _ -> handler.postDelayed({ killApp() }, 150) }
             .show()
     }
 
     private fun showExitPinDialog() {
+        val container = FrameLayout(this).apply { setPadding(dp(20), dp(10), dp(20), dp(0)) }
         val edit = EditText(this).apply {
-            hint = "Masukkan PIN (1234)"
-            setHintTextColor(parse("#9ca3af"))
-            setTextColor(Color.BLACK)
+            hint = "Masukkan PIN"
+            setHintTextColor(parse("#9CA3AF"))
+            setTextColor(parse("#1F2937"))
+            textSize = 18f
+            gravity = Gravity.CENTER
             inputType = android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_VARIATION_PASSWORD
+            background = roundedRect("#F9FAFB", 12, 1, "#E5E7EB")
             setPadding(dp(16), dp(14), dp(16), dp(14))
-            background = roundedRect("#f9fafb", 10, 1, "#e5e7eb")
+            layoutParams = FrameLayout.LayoutParams(MATCH, ViewGroup.LayoutParams.WRAP_CONTENT)
         }
+        container.addView(edit)
+        
         AlertDialog.Builder(this)
             .setTitle("Keluar Ujian")
-            .setMessage("Masukkan PIN untuk keluar.")
-            .setView(edit)
-            .setPositiveButton("OK") { _, _ ->
+            .setMessage("Masukkan PIN akses untuk keluar dari sesi ujian.")
+            .setView(container)
+            .setPositiveButton("KELUAR") { _, _ ->
                 if (edit.text.toString().trim() == "1234") {
                     stopHideLoop()
                     window.clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
@@ -396,7 +429,8 @@ class MainActivity : AppCompatActivity() {
                     buildHome()
                 } else toast("PIN salah!")
             }
-            .setNegativeButton("Batal", null).show()
+            .setNegativeButton("BATAL", null)
+            .show()
     }
 
     // ═══════════════════════════════════
@@ -527,14 +561,15 @@ class MainActivity : AppCompatActivity() {
     }
 
     /* ── Micro helpers ── */
-    private fun makeText(t: String, size: Float, color: String, gravity: Int = -1) = TextView(this).apply {
+    private fun makeText(t: String, size: Float, color: String, gravity: Int = -1, isBold: Boolean = false) = TextView(this).apply {
         text = t; textSize = size; setTextColor(parse(color))
+        if (isBold) typeface = Typeface.DEFAULT_BOLD
         if (gravity >= 0) this.gravity = gravity
     }
 
     private fun makeDivider() = View(this).apply {
-        layoutParams = LinearLayout.LayoutParams(MATCH, 1).apply { setMargins(0, dp(4), 0, dp(10)) }
-        setBackgroundColor(parse("#f3f4f6"))
+        layoutParams = LinearLayout.LayoutParams(MATCH, dp(1)).apply { setMargins(0, dp(12), 0, dp(16)) }
+        setBackgroundColor(parse("#F3F4F6"))
     }
 
     private fun roundedRect(color: String, radius: Int, strokeW: Int, strokeC: String?) = GradientDrawable().apply {
@@ -552,7 +587,12 @@ class MainActivity : AppCompatActivity() {
     private fun parse(c: String) = Color.parseColor(c)
     private val MATCH = ViewGroup.LayoutParams.MATCH_PARENT
 
-    override fun onResume() { super.onResume(); if (pinGranted && !killed) { try { hideSystemBars(); doLockTask() } catch (_: Exception) {} } }
+    override fun onResume() {
+        super.onResume()
+        // Always lock portrait
+        requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        if (pinGranted && !killed) { try { hideSystemBars(); doLockTask() } catch (_: Exception) {} }
+    }
     override fun onBackPressed() {}
     override fun onKeyDown(kc: Int, ev: KeyEvent?) = when (kc) { KeyEvent.KEYCODE_BACK, KeyEvent.KEYCODE_HOME, KeyEvent.KEYCODE_APP_SWITCH -> true; else -> super.onKeyDown(kc, ev) }
     override fun onUserLeaveHint() { if (pinGranted && !killed && webView != null) killApp(); super.onUserLeaveHint() }
