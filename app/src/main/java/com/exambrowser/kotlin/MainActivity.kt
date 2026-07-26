@@ -248,7 +248,7 @@ class MainActivity : AppCompatActivity() {
             Pair(R.drawable.ic_copy_paste, "Blokir copy/paste"),
             Pair(R.drawable.ic_globe, "Navigasi terbatas (hostname saja)")
         )
-        for ((icon, text) in items) {
+        for ((icon, label) in items) {
             featureList.addView(LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
                 setPadding(0, dp(5), 0, dp(5))
@@ -257,7 +257,7 @@ class MainActivity : AppCompatActivity() {
                     layoutParams = LinearLayout.LayoutParams(dp(16), dp(16)).apply { setMargins(0, 0, dp(8), 0) }
                 })
                 addView(TextView(this@MainActivity).apply {
-                    text = text
+                    text = label
                     setTextColor(colorFeatureText)
                     textSize = 12f
                 })
