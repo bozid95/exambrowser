@@ -153,6 +153,7 @@ class MainActivity : AppCompatActivity() {
         btnStart.layoutParams = LinearLayout.LayoutParams(MATCH, dp(54))
         btnStart.gravity = Gravity.CENTER
         btnStart.setOnClickListener {
+            if (inputUrl.text.toString().trim().isEmpty()) return@setOnClickListener
             if (!pinGranted) {
                 doLockTask()
                 waitForPin()
@@ -263,10 +264,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateStartButton() {
-        val active = inputUrl.text.toString().trim().isNotEmpty()
+        val active = isValidUrl(inputUrl.text.toString())
         // Warna biru modern jika terisi, abu-abu jika kosong
         btnStart.background = roundedRect(if (active) "#2563EB" else "#E5E7EB", 14, 0, null)
         btnStart.setTextColor(if (active) Color.WHITE else parse("#9CA3AF"))
+        btnStart.isEnabled = active
+        btnStart.isClickable = active
         
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             btnStart.elevation = if (active) dp(4).toFloat() else 0f
@@ -493,10 +496,36 @@ class MainActivity : AppCompatActivity() {
     // ═══════════════════════════════════
     private fun startExam() {
         val raw = inputUrl.text.toString().trim()
+        if (!isValidUrl(raw)) {
+            toast("URL tidak valid! Masukkan IP atau domain yang benar.")
+            return
+        }
         playAlarm()
         val isIp = Regex("^\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}").containsMatchIn(raw)
         examUrl = if (raw.contains("://")) raw else "${if (isIp) "http" else "https"}://$raw"
         buildExam()
+    }
+
+    private fun isValidUrl(input: String): Boolean {
+        if (input.isBlank()) return false
+        val trimmed = input.trim()
+        // Jika sudah ada scheme, validasi sebagai URL
+        if (trimmed.contains("://")) {
+            return try {
+                val url = java.net.URL(trimmed)
+                url.host.isNotEmpty()
+            } catch (_: Exception) { false }
+        }
+        // Cek apakah ini IP address
+        val ipPattern = Regex("""^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$""")
+        val ipMatch = ipPattern.find(trimmed.replace(Regex(":\\d+$"), ""))
+        if (ipMatch != null) {
+            val (a, b, c, d) = ipMatch.destructured
+            return a.toInt() in 0..255 && b.toInt() in 0..255 && c.toInt() in 0..255 && d.toInt() in 0..255
+        }
+        // Cek apakah ini domain valid (minimal ada titik, tanpa spasi & karakter aneh)
+        val domainPattern = Regex("""^[a-zA-Z0-9]([a-zA-Z0-9\-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9\-]*[a-zA-Z0-9])?)+$""")
+        return domainPattern.matches(trimmed.replace(Regex(":\\d+$"), ""))
     }
 
     private fun startClock() {
