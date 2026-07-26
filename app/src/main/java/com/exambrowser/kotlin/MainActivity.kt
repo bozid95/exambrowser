@@ -37,7 +37,7 @@ class MainActivity : AppCompatActivity() {
 
         // === HOME SCREEN (input URL) ===
         val layout = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTATION
+            orientation = LinearLayout.VERTICAL
             setPadding(60, 160, 60, 60)
         }
 
@@ -88,7 +88,7 @@ class MainActivity : AppCompatActivity() {
             .setMessage("Anda wajib menyematkan (pin) aplikasi untuk mengerjakan ujian.\n\nJika Anda menolak, aplikasi akan ditutup.")
             .setCancelable(false)
             .setPositiveButton("Saya Setuju") { _, _ ->
-                startLockTask()
+                doLockTask()
                 waitForPin()
             }
             .setNegativeButton("Tidak Setuju") { _, _ -> killApp() }
@@ -97,7 +97,7 @@ class MainActivity : AppCompatActivity() {
 
     // ============ PIN / LOCK TASK ============
 
-    private fun startLockTask() {
+    private fun doLockTask() {
         try {
             window.decorView.systemUiVisibility = (
                 View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY or
@@ -110,7 +110,10 @@ class MainActivity : AppCompatActivity() {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                 window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             }
-            startLockTask()
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                @Suppress("DEPRECATION")
+                startLockTask()
+            }
         } catch (_: Exception) {}
     }
 
@@ -158,7 +161,7 @@ class MainActivity : AppCompatActivity() {
                     killApp()
                     return
                 }
-                startLockTask()
+                doLockTask()
             } catch (_: Exception) {
                 killApp()
             }
@@ -205,14 +208,10 @@ class MainActivity : AppCompatActivity() {
                 }
             }
 
-            // Block ActionMode (copy/paste toolbar) — tidak blokir input
-            setCustomActionModeCallback(object : ActionMode.Callback {
-                override fun onCreateActionMode(mode: ActionMode?, menu: Menu?): Boolean = false
-                override fun onPrepareActionMode(mode: ActionMode?, menu: Menu?): Boolean = false
-                override fun onActionItemClicked(mode: ActionMode?, item: MenuItem?): Boolean = false
-                override fun onDestroyActionMode(mode: ActionMode?) {}
-            })
         }
+
+        // Block long-press context menu on WebView (prevents copy/paste toolbar)
+        webView.setOnLongClickListener { true }
 
         // Start periodic unpin check
         window.decorView.postDelayed(periodicCheck, 1000)
