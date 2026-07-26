@@ -50,6 +50,8 @@ class MainActivity : AppCompatActivity() {
 
     private val qrLauncher = registerForActivityResult(ScanContract()) { result ->
         if (result.contents != null) inputUrl.setText(result.contents)
+        // Restore orientation
+        requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -253,6 +255,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun startQrScanner() {
+        // Lock to portrait before launching camera
+        requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         qrLauncher.launch(ScanOptions().apply {
             setDesiredBarcodeFormats(ScanOptions.QR_CODE)
             setPrompt("Arahkan kamera ke QR Code")
