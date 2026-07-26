@@ -53,7 +53,7 @@ class MainActivity : AppCompatActivity() {
 
     private val qrLauncher = registerForActivityResult(ScanContract()) { result ->
         if (result.contents != null) inputUrl.setText(result.contents)
-        requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+        requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -100,10 +100,6 @@ class MainActivity : AppCompatActivity() {
         // Title
         card.addView(makeText("Exam Browser", 26f, "#1F2937", Gravity.CENTER, isBold = true).apply {
             setPadding(0, 0, 0, dp(4))
-        })
-        // Subtitle
-        card.addView(makeText("Aplikasi Ujian Terkunci untuk CBT", 13f, "#6B7280", Gravity.CENTER).apply {
-            setPadding(0, 0, 0, dp(20))
         })
 
         // Divider
@@ -284,6 +280,7 @@ class MainActivity : AppCompatActivity() {
             setPrompt("Arahkan kamera ke QR Code")
             setBeepEnabled(false)
             setOrientationLocked(true)
+            setCameraId(0)
         })
     }
 
@@ -323,11 +320,13 @@ class MainActivity : AppCompatActivity() {
             settings.allowFileAccess = false
             setLayerType(View.LAYER_TYPE_HARDWARE, null)
             webViewClient = object : WebViewClient() {
-                override fun shouldOverrideUrlLoading(v: WebView, r: android.webkit.WebResourceRequest) = try {
-                    val th = r.url.host ?: return true
-                    val ih = java.net.URL(examUrl).host
-                    th == ih || th.endsWith(".$ih")
-                } catch (_: Exception) { true }
+                override fun shouldOverrideUrlLoading(v: WebView, r: android.webkit.WebResourceRequest): Boolean {
+                    return try {
+                        val targetHost = r.url.host ?: return false
+                        val examHost = java.net.URL(examUrl).host
+                        if (targetHost == examHost || targetHost.endsWith(".$examHost")) false else true
+                    } catch (_: Exception) { false }
+                }
                 override fun onPageFinished(v: WebView, u: String) {
                     super.onPageFinished(v, u)
                     progressBar?.visibility = View.GONE

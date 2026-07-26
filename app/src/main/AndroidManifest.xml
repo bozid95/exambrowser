@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
 
@@ -7,6 +8,7 @@
         android:allowBackup="false"
         android:label="Exam Browser"
         android:supportsRtl="true"
+        android:usesCleartextTraffic="true"
         android:theme="@style/Theme.AppCompat.NoActionBar">
 
         <activity
@@ -22,5 +24,11 @@
             </intent-filter>
         </activity>
 
+        <!-- Kunci scanner barcode ke portrait -->
+        <activity
+            android:name="com.journeyapps.barcodescanner.CaptureActivity"
+            android:screenOrientation="portrait"
+            android:exported="false"
+            tools:replace="android:screenOrientation" />
     </application>
 </manifest>
