@@ -1,4 +1,4 @@
-package com.exambrowser.kotlin
+package com.exambrowser.redodo.app
 
 import android.animation.LayoutTransition
 import android.app.ActivityManager

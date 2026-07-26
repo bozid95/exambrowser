@@ -4,11 +4,12 @@ plugins {
 }
 
 android {
-    namespace = "com.exambrowser.kotlin"
+    namespace = "com.exambrowser.redodo.app"
     compileSdk = 35
+    base.archivesName.set("exambrowser-redodo")
 
     signingConfigs {
-        create("release") {
+        create("custom") {
             storeFile = rootProject.file("debug.keystore")
             storePassword = "android"
             keyAlias = "androiddebugkey"
@@ -17,7 +18,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.exambrowser.kotlin"
+        applicationId = "com.exambrowser.redodo.app"
         minSdk = 26
         targetSdk = 35
         versionCode = 1
@@ -25,10 +26,13 @@ android {
     }
 
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("custom")
+        }
         release {
             isMinifyEnabled = true
-            isShrinkResources = true
-            signingConfig = signingConfigs.getByName("release")
+            isShrinkResources = false
+            signingConfig = signingConfigs.getByName("custom")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
