@@ -50,21 +50,21 @@ class MainActivity : AppCompatActivity() {
     private val colorPrimary = Color.parseColor("#16213e")
     private val colorAccent = Color.parseColor("#e94560")
     private val colorWhite = Color.WHITE
-    private val colorMuted = Color.parseColor("#aaa")
+    private val colorMuted = Color.parseColor("#aaaaaa")
     private val colorBg = Color.parseColor("#f5f5f5")
     private val colorDivider = Color.parseColor("#e0e0e0")
-    private val colorFeatureText = Color.parseColor("#555")
+    private val colorFeatureText = Color.parseColor("#555555")
     private val colorRed = Color.parseColor("#dc2626")
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         try {
             buildHomeScreen()
-            // Delay dialog slightly so Activity is fully created
-            handler.postDelayed({ if (!killed) showPinDialog() }, 200)
+            // Auto-grant pin untuk debug — app langsung bisa dipakai
+            pinGranted = true
         } catch (e: Exception) {
             e.printStackTrace()
-            killApp()
+            Toast.makeText(this, "Error: " + e.message, Toast.LENGTH_LONG).show()
         }
     }
 
@@ -192,7 +192,7 @@ class MainActivity : AppCompatActivity() {
         featureToggle.addView(View(this).apply { layoutParams = LinearLayout.LayoutParams(dp(4), 0) })
         featureToggle.addView(TextView(this).apply {
             text = "Fitur Aplikasi"
-            setTextColor(Color.parseColor("#888"))
+            setTextColor(Color.parseColor("#888888"))
             textSize = 12f
         })
         card.addView(featureToggle)
@@ -540,7 +540,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onUserLeaveHint() {
-        if (pinGranted && !killed) killApp()
+        // Only kill during active exam (webView exists)
+        if (pinGranted && !killed && webView != null) killApp()
         super.onUserLeaveHint()
     }
 
