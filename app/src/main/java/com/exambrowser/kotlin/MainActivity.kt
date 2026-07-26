@@ -64,15 +64,15 @@ class MainActivity : AppCompatActivity() {
     //  HOME SCREEN
     // ═══════════════════════════════════
     private fun buildHome() {
-        val root = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
+        val root = FrameLayout(this).apply {
             setBackgroundColor(parse("#f8f9fa"))
+            layoutParams = matchParent()
         }
         val scroll = ScrollView(this).apply { layoutParams = matchParent() }
         val wrapper = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER_HORIZONTAL
-            setPadding(dp(20), dp(56), dp(20), dp(24))
+            gravity = Gravity.CENTER
+            setPadding(dp(20), dp(20), dp(20), dp(24))
         }
 
         // ── Card ──
@@ -226,26 +226,21 @@ class MainActivity : AppCompatActivity() {
             R.drawable.ic_copy_paste to "Blokir copy/paste — Mencegah kecurangan ujian",
             R.drawable.ic_globe to "Navigasi terbatas — Hanya hostname yang sama",
             R.drawable.ic_qr_scanner to "QR Scanner — Pindai QR Code untuk URL ujian",
-            null to "Audio Alarm — Alarm berbunyi saat ujian dimulai",
-            null to "PIN Exit — PIN 1234 untuk keluar dari ujian",
-            null to "Status Bar — Jam & baterai selalu terlihat"
+            R.drawable.ic_music to "Audio Alarm — Alarm berbunyi saat ujian dimulai",
+            R.drawable.ic_pin_exit to "PIN Exit — PIN 1234 untuk keluar dari ujian",
+            R.drawable.ic_statusbar to "Status Bar — Jam & baterai selalu terlihat"
         )
         for ((icon, label) in features) {
             val row = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
                 setPadding(0, dp(5), 0, dp(5))
             }
-            if (icon != null) {
-                val iconView = ImageView(this).apply {
-                    setImageResource(icon)
-                    layoutParams = LinearLayout.LayoutParams(dp(18), dp(18))
-                    setColorFilter(parse("#6b7280"))
-                }
-                row.addView(iconView)
-                row.addView(space(10, 0))
-            } else {
-                row.addView(space(28, 0))
+            val iconView = ImageView(this).apply {
+                setImageResource(icon)
+                layoutParams = LinearLayout.LayoutParams(dp(18), dp(18))
+                setColorFilter(parse("#6b7280"))
             }
+            row.addView(iconView)
             row.addView(makeText(label, 11f, "#6b7280"))
             featureList.addView(row)
         }
